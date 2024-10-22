@@ -39,7 +39,7 @@ The following steps were taken in the analysis:
 
 ## 7. Reference papers
 - “A Comparative Study of Pattern Recognition Algorithms for Predicting the Inpatient Mortality Risk Using Routine Laboratory Measurements” (https://doi.org/10.1007/s10462-018-9625-3)
-- “Machine Learning Prediction of Hypoglycemia and Hyperglycemia From Electronic Health Records” (10.2196/36176)
+- “Machine Learning Prediction of Hypoglycemia and Hyperglycemia From Electronic Health Records” (doi:10.2196/36176)
 
 ## 8. How to run this project
 Prerequisites:
