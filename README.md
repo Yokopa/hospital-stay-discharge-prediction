@@ -17,20 +17,20 @@ The repository is organized as follows:
 ## 4. Methodology
 The following steps were taken in the analysis:
 
-4.1 Data Exploration
+### 4.1 Data Exploration
 - Description of exploratory analysis performed, including visualization and statistical summaries of key variables such as LOS, discharge type, and lab results.
 
-4.2 Data Cleaning
+### 4.2 Data Cleaning
 - Steps taken to clean and preprocess the datasets (e.g., handling missing values, removing duplicates, dealing with erroneous entries).
 
-4.3 Data Merging
+### 4.3 Data Merging
 - Describe how the clinical and lab datasets were merged and the challenges encountered in this process.
 
-4.4 Modeling Approaches
+### 4.4 Modeling Approaches
 - Predicting Length of Stay: Explain the modeling techniques used (e.g., linear regression, machine learning methods).
 - Predicting Discharge Type: Detail the classification methods used (e.g., logistic regression, decision trees).
 
-4.5 Model Validation
+### 4.5 Model Validation
 - Cross-validation techniques, performance metrics (accuracy, sensitivity, specificity, AUC, etc.), and any statistical tests performed to evaluate the models.
 
 ## 5. Results
