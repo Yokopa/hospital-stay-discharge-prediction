@@ -17,24 +17,35 @@ The repository is organized as follows:
 ## 4. Methodology
 The following steps were taken in the analysis:
 
-### 4.1 Data Exploration
+#### 4.1 Data Exploration
 - Description of exploratory analysis performed, including visualization and statistical summaries of key variables such as LOS, discharge type, and lab results.
 
-### 4.2 Data Cleaning
+#### 4.2 Data Cleaning
 - Steps taken to clean and preprocess the datasets (e.g., handling missing values, removing duplicates, dealing with erroneous entries).
 
-### 4.3 Data Merging
+#### 4.3 Data Merging
 - Describe how the clinical and lab datasets were merged and the challenges encountered in this process.
 
-### 4.4 Modeling Approaches
-- Predicting Length of Stay: Explain the modeling techniques used (e.g., linear regression, machine learning methods).
-- Predicting Discharge Type: Detail the classification methods used (e.g., logistic regression, decision trees).
+#### 4.4 Modeling Approaches (Planned)
+- Predicting Length of Stay: Linear Regression to model LOS based on lab values, patient demographics, and diagnoses.
+- Predicting Discharge Type: Logistic Regression to classify discharge type (e.g., home vs. non-home) based on initial lab values and patient demographic information.
 
-### 4.5 Model Validation
-- Cross-validation techniques, performance metrics (accuracy, sensitivity, specificity, AUC, etc.), and any statistical tests performed to evaluate the models.
+Once the models are built and evaluated, more information will be provided.
 
-## 5. Results
+#### 4.5 Model Validation (Planned)
+Model validation will be performed using various techniques, including:
+- Cross-validation techniques
+- Performance metrics (accuracy, sensitivity, specificity, AUC, etc.)
+- Statistical tests
 
+This section will be updated with results and performance metrics after validation is completed.
+
+## 5. Results (Pending)
+This section will be filled in as the project progresses and results become available. The following will be included:
+- Model performance
+- Visualization
+- Key insights
+  
 ## 6. Future works
 
 ## 7. Reference papers
