@@ -5,10 +5,9 @@ This project aims to predict hospital length of stay (LOS) and discharge type us
 
 ## 2. Structure
 The repository is organized as follows:
-- data/: Contains the raw and cleaned datasets used for the analysis.
 - R/: Folder containing R scripts for data processing, modeling, and validation.
-- notebooks/: RMarkdown files detailing each step of the analysis, from data exploration to modeling.
-- reports/: Contains final reports, plots, and figures summarizing the findings.
+- notebooks/: RMarkdown files detailing each step of the analysis, from data exploration to modeling. --> planned
+- reports/: Contains final reports, plots, and figures summarizing the findings. --> pending
 
 ## 3. Datasets
 - **Lab Data**: Sourced from a CSV file (RITM0154633_lab.csv), which ontains patient lab results.
