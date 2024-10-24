@@ -5,7 +5,7 @@ This project aims to predict hospital length of stay (LOS) and discharge type us
 
 ## 2. Structure
 The repository is organized as follows:
-- R/: Folder containing R scripts for data processing, modeling, and validation.
+- scripts/: Folder containing R scripts for data processing, modeling, and validation.
 - notebooks/: RMarkdown files detailing each step of the analysis, from data exploration to modeling. --> planned
 - reports/: Contains final reports, plots, and figures summarizing the findings. --> pending
 
