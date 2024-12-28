@@ -2,9 +2,9 @@
 
 ## Introduction
 
-Hospital length of stay (LOS) and discharge type are key metrics in healthcare, shaping patient outcomes and resource allocation. This project aims to lay the groundwork for predictive modeling of LOS and discharge type by analyzing clinical and laboratory data, including patient demographics, diagnoses, and outcomes.
+Hospital length of stay (LOS) and discharge type are key metrics in healthcare, influencing patient outcomes and resource allocation. This project aims to establish a foundation for predictive modeling of LOS and discharge type by analyzing clinical and laboratory data, including patient demographics, diagnoses, and outcomes.
 
-Initial efforts focus on data cleaning and exploratory analysis to address missing values, duplicates, and outliers, ensuring high-quality datasets for modeling. 
+The initial phase focuses on data cleaning and exploratory analysis to address missing values, duplicates, and outliers, ensuring high-quality datasets for subsequent modeling work.
 
 ## Repository Structure
 
@@ -60,9 +60,7 @@ The project uses R (version 4.4.1) and the following packages:
 - Data manipulation: `data.table`, `dplyr`, `tidyr`
 - Visualization: `ggplot2`, `ggcorrplot`, `reshape2`, `RColorBrewer`
 
-Refer to the `DESCRIPTION` file for the full list of package dependencies.
-
-## How to Use
+## To run this analysis
 
 1. Clone this repository to your local machine.
       ```bash
