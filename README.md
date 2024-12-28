@@ -67,12 +67,25 @@ Refer to the `DESCRIPTION` file for the full list of package dependencies.
 1. Clone this repository to your local machine.
       ```bash
    git clone https://github.com/yourusername/los-prediction.git
-3. Open RStudio and set the working directory to the location where you cloned the repository.
-4. Install the required R packages by running the setup chuck:
+3. Launch RStudio and navigate to the directory where you cloned the repository.
+4. Install the necessary R packages by executing the setup code:
 ```R
-packages_to_install <- ("data.table", "dplyr", "tidyr", "ggplot2", "ggcorrplot", "reshape2", "RColorBrewer")
+install_if_missing <- function(packages) {
+  invisible(lapply(packages, function(pkg) {
+    if (!require(pkg, character.only = TRUE)) {
+      install.packages(pkg)
+      cat(paste("Installing", pkg, "\n"))
+    } else {
+      cat(paste(pkg, "is already installed.\n"))
+    }
+  }))
+}
 
-install.packages
+# List of packages to install
+packages_to_install <- c("data.table", "dplyr", "tidyr", "ggplot2", "ggcorrplot", "reshape2", "RColorBrewer")
+
+# Run the function to install missing packages
+install_if_missing(packages_to_install)
 ```
 4. Run the numbered scripts in order.
 
