@@ -64,10 +64,17 @@ Refer to the `DESCRIPTION` file for the full list of package dependencies.
 
 ## How to Use
 
-1. Clone this repository:
-   ```bash
+1. Clone this repository to your local machine.
+      ```bash
    git clone https://github.com/yourusername/los-prediction.git
-   cd los-prediction
+3. Open RStudio and set the working directory to the location where you cloned the repository.
+4. Install the required R packages by running the setup chuck:
+```R
+packages_to_install <- ("data.table", "dplyr", "tidyr", "ggplot2", "ggcorrplot", "reshape2", "RColorBrewer")
+
+install.packages
+```
+4. Run the numbered scripts in order.
 
 ## Reference papers
 - “A Comparative Study of Pattern Recognition Algorithms for Predicting the Inpatient Mortality Risk Using Routine Laboratory Measurements” (https://doi.org/10.1007/s10462-018-9625-3)
