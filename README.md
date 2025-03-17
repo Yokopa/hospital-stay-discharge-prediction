@@ -1,6 +1,6 @@
-# hospital-stay-discharge-prediction
+# Predicting hospital length of stay and discharge type using admission lab results, demographics, and diagnosis
 
-Hospital length of stay (LOS) and discharge type are key metrics in healthcare, influencing patient outcomes and resource allocation. This project aims to build predictive models for LOS and discharge type by analyzing clinical and laboratory data, including patient demographics, diagnoses, and outcomes.
+Hospital length of stay (LOS) and discharge type are critical factors in patient care and healthcare resource management. This project aims to develop predictive models for LOS and discharge type using clinical and laboratory data, incorporating patient demographics, initial lab values, and principal diagnoses. Accurate predictions could enhance patient care, optimize resource allocation, and facilitate timely coordination of social and medical services.
 
 
 ```mermaid
@@ -10,7 +10,7 @@ gantt
     axisFormat %Y-%m-%w
 
     section Preparation
-    Data cleaning in Python    :active, screv, screv 2025-02-24, 2025-03-24
+    Data cleaning in Python    :active, screv, 2025-02-24, 2025-03-24
     Data preprocessing         :active, screv, 2025-02-25, 2025-04-15
     Literature review          :active, screv, 2025-02-24, 2025-04-15
 
@@ -20,10 +20,16 @@ gantt
     section Implementation
     Modeling            :screv, 2025-04-15, 2025-06-15
     Paragraph draft - Methodology              :milestone, done, 2025-06-20, 0d
-    Model validation    :crit,screv, 2025-06-1, 2025-07-15
+    Model validation    :crit,screv, 2025-06-01, 2025-07-15
 
-    Poster presentation :milestone, done, 2025-07-2, 0d
+    Poster presentation :milestone, done, 2025-07-02, 0d
 
     section Dissertation
     Theis writing :screv, 2025-07-15, 2025-08-15
 ```
+
+# Supervisor & Contributors
+
+Supervisor: Prof. Alexander Benedikt Leichtle
+
+MSc Student: Anna Scarpellini Pancrazi
