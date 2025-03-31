@@ -2,11 +2,11 @@
 
 Hospital length of stay (LOS) and discharge type are critical factors in patient care and healthcare resource management. This project aims to develop predictive models for LOS and discharge type using clinical and laboratory data, incorporating patient demographics, initial lab values, and principal diagnoses. Accurate predictions could enhance patient care, optimize resource allocation, and facilitate timely coordination of social and medical services.
 
+### Project Timeline:
 
 ```mermaid
 gantt
     dateFormat  YYYY-MM-DD
-    title       Thesis Project Timeline
     axisFormat %Y-%m-%w
 
     section Preparation
@@ -28,7 +28,14 @@ gantt
     Theis writing :screv, 2025-07-15, 2025-08-15
 ```
 
-# Supervisor & Contributors
+### What I am working on at the moment:
+
+- **Cleaning and preprocessing clinical and lab data** for predictive modeling of hospital length of stay and discharge type.
+- **Investigating methods for handling missing data and outliers** in the dataset -> MissForest imputation algorithm and Isolation Forest for outlier detection.
+- **Studying model selection, feature engineering, and variable selection techniques** for predicting hospital length of stay (LOS).
+- **Reviewing literature** to understand related methods and approaches in predicting LOS and discharge type.
+
+### Supervisor & Contributors
 
 Supervisor: Prof. Alexander Benedikt Leichtle
 
