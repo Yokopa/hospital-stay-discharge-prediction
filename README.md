@@ -28,7 +28,7 @@ gantt
     Theis writing :screv, 2025-07-15, 2025-08-15
 ```
 
-### What I am working on at the moment:
+### Ongoing Work:
 
 - **Cleaning and preprocessing clinical and lab data** for predictive modeling of hospital length of stay and discharge type.
 - **Investigating methods for handling missing data and outliers** in the dataset -> MissForest imputation algorithm and Isolation Forest for outlier detection.
