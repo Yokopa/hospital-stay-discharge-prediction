@@ -1,6 +1,6 @@
 # Predicting hospital length of stay and discharge type using admission lab results, demographics, and diagnosis
 
-Hospital length of stay (LOS) and discharge type are critical factors in patient care and healthcare resource management. This project aims to develop predictive models for LOS and discharge type using clinical and laboratory data, incorporating patient demographics, initial lab values, and principal diagnoses. Accurate predictions could enhance patient care, optimize resource allocation, and facilitate timely coordination of social and medical services.
+Predicting hospital length of stay (LoS) and discharge type using admission clinical data and laboratory results. Accurate predictions could enhance patient care, optimize resource allocation, and facilitate timely coordination of social and medical services.
 
 ### Project Timeline:
 
