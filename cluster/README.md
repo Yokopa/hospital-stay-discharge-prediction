@@ -1,11 +1,11 @@
 This folder contains bash scripts to run the analysis on the cluster.
 The scripts are numbered to indicate the order in which they should be executed.
 
-> 💡 Note: The Python scripts for the analysis are located in the `src/` folder.
+> Note: The Python scripts for the analysis are located in the `src/` folder.
 
 ---
 
-## 🛠️ Environment Setup
+## Environment Setup
 
 To ensure reproducibility, use the provided `environment.yml` file to create a conda environment.
 
