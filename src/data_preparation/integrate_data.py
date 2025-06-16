@@ -65,7 +65,7 @@ def integrate_data(
     lab_test_counts["missing_percentage"] = ((total_cases - lab_test_counts["num_cases"]) / total_cases) * 100
     
     # Filter lab tests by missingness threshold
-    filtered_lab_tests = lab_test_counts[lab_test_counts["missing_percentage"] < missing_threshold]
+    filtered_lab_tests = lab_test_counts[lab_test_counts["missing_percentage"] <= missing_threshold]
     log.info(f"Filtered lab tests to {filtered_lab_tests.shape[0]} by missingness < {missing_threshold}%")
 
     # ------------------------------------------------------------------ #
