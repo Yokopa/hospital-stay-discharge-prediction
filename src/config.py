@@ -90,7 +90,8 @@ DEFAULT_MODEL_CONFIG = {
             "params": {
                 "n_estimators": 100,
                 "max_depth": 8,
-                "random_state": 42
+                "random_state": RANDOM_SEED,
+                "class_weight": "balanced"
             }
         },
         "regressor": {
@@ -98,7 +99,7 @@ DEFAULT_MODEL_CONFIG = {
             "params": {
                 "n_estimators": 100,
                 "max_depth": 10,
-                "random_state": 42
+                "random_state": RANDOM_SEED
             }
         }
     },
@@ -107,14 +108,14 @@ DEFAULT_MODEL_CONFIG = {
             "class": DecisionTreeClassifier,
             "params": {
                 "max_depth": 5,
-                "random_state": 42
+                "random_state": RANDOM_SEED
             }
         },
         "regressor": {
             "class": DecisionTreeRegressor,
             "params": {
                 "max_depth": 5,
-                "random_state": 42
+                "random_state": RANDOM_SEED
             }
         }
     },
@@ -122,15 +123,26 @@ DEFAULT_MODEL_CONFIG = {
         "classifier": {
             "class": CatBoostClassifier,
             "params": {
-                "verbose": 0,
-                "random_state": 42
+                "iterations": 500,
+                "learning_rate": 0.05,
+                "depth": 6,
+                "eval_metric": "F1",          
+                "loss_function": "Logloss",
+                "random_seed": RANDOM_SEED,
+                "verbose": 100    ,
+                "auto_class_weights": "Balanced"  
             }
         },
         "regressor": {
             "class": CatBoostRegressor,
             "params": {
-                "verbose": 0,
-                "random_state": 42
+                "iterations": 500,
+                "learning_rate": 0.05,
+                "depth": 6,
+                "loss_function": "RMSE",
+                "eval_metric": "RMSE",
+                "random_seed": RANDOM_SEED,
+                "verbose": 100
             }
         }
     },
@@ -138,17 +150,30 @@ DEFAULT_MODEL_CONFIG = {
         "classifier": {
             "class": LGBMClassifier,
             "params": {
-                "n_estimators": 100,
-                "max_depth": 8,
-                "random_state": 42
+                "n_estimators": 1000,          # allow early stopping to determine optimal iteration
+                "learning_rate": 0.05,         # slower learning for better generalization
+                "max_depth": -1,               # let trees grow until leaves
+                "num_leaves": 31,              # default, often reasonable
+                "min_child_samples": 20,       # helps prevent overfitting
+                "subsample": 0.8,              # bagging (row sampling)
+                "colsample_bytree": 0.8,       # feature sampling
+                "random_state": RANDOM_SEED,
+                "verbosity": -1 ,
+                "is_unbalance": True               # cleaner output
             }
         },
         "regressor": {
             "class": LGBMRegressor,
             "params": {
-                "n_estimators": 100,
-                "max_depth": 10,
-                "random_state": 42
+                "n_estimators": 1000,
+                "learning_rate": 0.05,
+                "max_depth": -1,
+                "num_leaves": 31,
+                "min_child_samples": 20,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+                "random_state": RANDOM_SEED,
+                "verbosity": -1
             }
         }
     },
@@ -156,19 +181,31 @@ DEFAULT_MODEL_CONFIG = {
         "classifier": {
             "class": XGBClassifier,
             "params": {
-                "n_estimators": 100,
-                "max_depth": 8,
-                "random_state": 42,
+                "n_estimators": 1000,              # large number with early stopping
+                "learning_rate": 0.05,             # slower learning for better generalization
+                "max_depth": 6,                    # shallower trees help generalize
+                "min_child_weight": 1,             # minimum sum of instance weight needed in a child
+                "subsample": 0.8,                  # row sampling
+                "colsample_bytree": 0.8,           # feature sampling
+                "gamma": 0,                        # minimum loss reduction
+                "random_state": RANDOM_SEED,
                 "use_label_encoder": False,
-                "eval_metric": "logloss"
+                "eval_metric": "logloss",          # or 'auc' for binary classification
+                "verbosity": 0
             }
         },
         "regressor": {
             "class": XGBRegressor,
             "params": {
-                "n_estimators": 100,
-                "max_depth": 10,
-                "random_state": 42
+                "n_estimators": 1000,
+                "learning_rate": 0.05,
+                "max_depth": 6,
+                "min_child_weight": 1,
+                "subsample": 0.8,
+                "colsample_bytree": 0.8,
+                "gamma": 0,
+                "random_state": RANDOM_SEED,
+                "verbosity": 0
             }
         }
     }

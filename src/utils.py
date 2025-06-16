@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from collections import Counter
 import logging
 
 log = logging.getLogger(__name__)
@@ -153,3 +154,14 @@ def generate_summary_statistics(
         summary_stats.to_csv(save_path)
 
     return summary_stats
+
+# -----------------------------------#
+# Modeling utilities
+# -----------------------------------#
+# Imbalance
+def compute_scale_pos_weight(y):
+    """Compute scale_pos_weight = (neg / pos) for XGBoost."""
+    counter = Counter(y)
+    neg = counter.get(0, 0)
+    pos = counter.get(1, 0)
+    return neg / pos if pos > 0 else 1.0  # avoid division by zero
