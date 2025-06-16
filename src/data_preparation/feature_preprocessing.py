@@ -567,14 +567,14 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
 # -------------------------
 # Generate multiple datasets from configurations
 # -------------------------
-def generate_all_datasets(raw_df, dataset_configs):
+def generate_all_datasets(raw_df, target_col, dataset_configs):
     """
     Generates datasets for each DatasetConfig.
     Returns dict: {config.name: (X_train, X_test, y_train, y_test, transformers)}
     """
     all_data = {}
     for config in dataset_configs:
-        X_train, X_test, y_train, y_test, transformers = prepare_dataset(raw_df, config)
+        X_train, X_test, y_train, y_test, transformers = prepare_dataset(raw_df, target_col, config)
         all_data[config.name] = {
             "X_train": X_train,
             "X_test": X_test,
