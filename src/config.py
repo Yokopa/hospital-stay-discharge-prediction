@@ -82,8 +82,12 @@ CV_FOLDS = 5
 TEST_SIZE = 0.20
 LOS_TARGET_THRESHOLDS = [7, 14, 30]
 
+# === Paths to dataset and model configurations ===
+DATASET_CONFIG_PATH = "/home/anna/Desktop/Master_thesis/hospital-stay-discharge-prediction/config_experiment/dataset.yaml"
+MODEL_CONFIG_PATH = "/home/anna/Desktop/Master_thesis/hospital-stay-discharge-prediction/config_experiment/params.yaml"
+
 # === Default Model Configuration ===
-DEFAULT_MODEL_CONFIG = {
+MODEL_CONFIGS = {
     "random_forest": {
         "classifier": {
             "class": RandomForestClassifier,
@@ -306,231 +310,231 @@ DatasetConfig = namedtuple("DatasetConfig", [
     "ordinal_categories"
 ])
 
-# === LightGBM / CatBoost (can handle NaN + categorical) ===
-DATASET_CONFIGS_NAN_CAT_NATIVE = [
-    DatasetConfig(
-        name="raw_minimal",
-        apply_age_binning=False,
-        add_missing_flags=False,
-        icd_strategy=None,
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="missing_flags_only",
-        apply_age_binning=False,
-        add_missing_flags=True,
-        icd_strategy=None,
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="engineered_only_nan",
-        apply_age_binning=False,
-        add_missing_flags=False,
-        icd_strategy=None,
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=["anemia", "kidney", "liver"],
-        ordinal_cols=["anemia_level", "kidney_function", "liver_fibrosis_risk"],
-        ordinal_categories=[
-            ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
-            ["severe", "moderate", "mild", "normal", "unknown"],
-            ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
-        ]
-    ),
-    DatasetConfig(
-        name="engineered_and_flags_nan",
-        apply_age_binning=False,
-        add_missing_flags=True,
-        icd_strategy=None,
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=["anemia", "kidney", "liver"],
-        ordinal_cols=["anemia_level", "kidney_function", "liver_fibrosis_risk"],
-        ordinal_categories=[
-            ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
-            ["severe", "moderate", "mild", "normal", "unknown"],
-            ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
-        ]
-    ),
-    DatasetConfig(
-        name="icd_blocks_flags_nan",
-        apply_age_binning=True,
-        add_missing_flags=True,
-        icd_strategy="blocks",
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="icd_categories_flags_nan",
-        apply_age_binning=True,
-        add_missing_flags=True,
-        icd_strategy="categories",
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="age_bin_icd_grouped_flags_nan",
-        apply_age_binning=True,
-        add_missing_flags=True,
-        icd_strategy="categories",
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="age_bin_icd_blocks_flags_nan",
-        apply_age_binning=True,
-        add_missing_flags=True,
-        icd_strategy="blocks",
-        impute=False,
-        encode=False,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    )
-]
+# # === LightGBM / CatBoost (can handle NaN + categorical) ===
+# DATASET_CONFIGS_NAN_CAT_NATIVE = [
+#     DatasetConfig(
+#         name="raw_minimal",
+#         apply_age_binning=False,
+#         add_missing_flags=False,
+#         icd_strategy=None,
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="missing_flags_only",
+#         apply_age_binning=False,
+#         add_missing_flags=True,
+#         icd_strategy=None,
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="engineered_only_nan",
+#         apply_age_binning=False,
+#         add_missing_flags=False,
+#         icd_strategy=None,
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=["anemia", "kidney", "liver"],
+#         ordinal_cols=["anemia_level", "kidney_function", "liver_fibrosis_risk"],
+#         ordinal_categories=[
+#             ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
+#             ["severe", "moderate", "mild", "normal", "unknown"],
+#             ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+#         ]
+#     ),
+#     DatasetConfig(
+#         name="engineered_and_flags_nan",
+#         apply_age_binning=False,
+#         add_missing_flags=True,
+#         icd_strategy=None,
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=["anemia", "kidney", "liver"],
+#         ordinal_cols=["anemia_level", "kidney_function", "liver_fibrosis_risk"],
+#         ordinal_categories=[
+#             ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
+#             ["severe", "moderate", "mild", "normal", "unknown"],
+#             ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+#         ]
+#     ),
+#     DatasetConfig(
+#         name="icd_blocks_flags_nan",
+#         apply_age_binning=True,
+#         add_missing_flags=True,
+#         icd_strategy="blocks",
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="icd_categories_flags_nan",
+#         apply_age_binning=True,
+#         add_missing_flags=True,
+#         icd_strategy="categories",
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="age_bin_icd_grouped_flags_nan",
+#         apply_age_binning=True,
+#         add_missing_flags=True,
+#         icd_strategy="categories",
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="age_bin_icd_blocks_flags_nan",
+#         apply_age_binning=True,
+#         add_missing_flags=True,
+#         icd_strategy="blocks",
+#         impute=False,
+#         encode=False,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     )
+# ]
 
-# === XGBoost (can handle NaNs but prefers numerical only) ===
-DATASET_CONFIGS_NAN_CAT_ENCODED = [
-    DatasetConfig(
-        name="encoded_only_nan",
-        apply_age_binning=False,
-        add_missing_flags=False,
-        icd_strategy=None,
-        impute=False,
-        encode=True,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="imputed_encoded_nan",
-        apply_age_binning=False,
-        add_missing_flags=True,
-        icd_strategy=None,
-        impute=True,
-        encode=True,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="encoded_scaled_nan",
-        apply_age_binning=False,
-        add_missing_flags=False,
-        icd_strategy=None,
-        impute=False,
-        encode=True,
-        scale=True,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="imputed_encoded_scaled_nan",
-        apply_age_binning=False,
-        add_missing_flags=True,
-        icd_strategy=None,
-        impute=True,
-        encode=True,
-        scale=True,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    )
-]
+# # === XGBoost (can handle NaNs but prefers numerical only) ===
+# DATASET_CONFIGS_NAN_CAT_ENCODED = [
+#     DatasetConfig(
+#         name="encoded_only_nan",
+#         apply_age_binning=False,
+#         add_missing_flags=False,
+#         icd_strategy="categories",
+#         impute=False,
+#         encode=True,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="imputed_encoded_nan",
+#         apply_age_binning=False,
+#         add_missing_flags=True,
+#         icd_strategy="categories",
+#         impute=True,
+#         encode=True,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="encoded_scaled_nan",
+#         apply_age_binning=False,
+#         add_missing_flags=False,
+#         icd_strategy="categories",
+#         impute=False,
+#         encode=True,
+#         scale=True,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="imputed_encoded_scaled_nan",
+#         apply_age_binning=False,
+#         add_missing_flags=True,
+#         icd_strategy="categories",
+#         impute=True,
+#         encode=True,
+#         scale=True,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     )
+# ]
 
-# === Models needing full numeric and no NaNs (LogReg, SVM, kNN) ===
-DATASET_CONFIGS_NO_NAN_ENCODED = [
-    DatasetConfig(
-        name="imputed_encoded_scaled",
-        apply_age_binning=True,
-        add_missing_flags=True,
-        icd_strategy="blocks",
-        impute=True,
-        encode=True,
-        scale=True,
-        engineered_features=["anemia", "kidney", "liver"],
-        ordinal_cols=["anemia_level", "kidney_function", "liver_fibrosis_risk"],
-        ordinal_categories=[
-            ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
-            ["severe", "moderate", "mild", "normal", "unknown"],
-            ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
-        ]
-    ),
-    DatasetConfig(
-        name="imputed_encoded",
-        apply_age_binning=False,
-        add_missing_flags=False,
-        icd_strategy=None,
-        impute=True,
-        encode=True,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="imputed_encoded_icd_grouped",
-        apply_age_binning=True,
-        add_missing_flags=True,
-        icd_strategy="categories",
-        impute=True,
-        encode=True,
-        scale=False,
-        engineered_features=[],
-        ordinal_cols=None,
-        ordinal_categories=None
-    ),
-    DatasetConfig(
-        name="imputed_encoded_engineered",
-        apply_age_binning=False,
-        add_missing_flags=False,
-        icd_strategy=None,
-        impute=True,
-        encode=True,
-        scale=False,
-        engineered_features=["anemia", "kidney"],
-        ordinal_cols=["anemia_level", "kidney_function"],
-        ordinal_categories=[
-            ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
-            ["severe", "moderate", "mild", "normal", "unknown"]
-        ]
-    )
-]
+# # === Models needing full numeric and no NaNs (LogReg, SVM, kNN) ===
+# DATASET_CONFIGS_NO_NAN_ENCODED = [
+#     DatasetConfig(
+#         name="imputed_encoded_scaled",
+#         apply_age_binning=True,
+#         add_missing_flags=True,
+#         icd_strategy="blocks",
+#         impute=True,
+#         encode=True,
+#         scale=True,
+#         engineered_features=["anemia", "kidney", "liver"],
+#         ordinal_cols=["anemia_level", "kidney_function", "liver_fibrosis_risk"],
+#         ordinal_categories=[
+#             ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
+#             ["severe", "moderate", "mild", "normal", "unknown"],
+#             ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+#         ]
+#     ),
+#     DatasetConfig(
+#         name="imputed_encoded",
+#         apply_age_binning=False,
+#         add_missing_flags=False,
+#         icd_strategy=None,
+#         impute=True,
+#         encode=True,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="imputed_encoded_icd_grouped",
+#         apply_age_binning=True,
+#         add_missing_flags=True,
+#         icd_strategy="categories",
+#         impute=True,
+#         encode=True,
+#         scale=False,
+#         engineered_features=[],
+#         ordinal_cols=None,
+#         ordinal_categories=None
+#     ),
+#     DatasetConfig(
+#         name="imputed_encoded_engineered",
+#         apply_age_binning=False,
+#         add_missing_flags=False,
+#         icd_strategy=None,
+#         impute=True,
+#         encode=True,
+#         scale=False,
+#         engineered_features=["anemia", "kidney"],
+#         ordinal_cols=["anemia_level", "kidney_function"],
+#         ordinal_categories=[
+#             ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"],
+#             ["severe", "moderate", "mild", "normal", "unknown"]
+#         ]
+#     )
+# ]
 
-# === All dataset configs together (optional master list)
-ALL_DATASET_CONFIGS = (
-    DATASET_CONFIGS_NAN_CAT_NATIVE +
-    DATASET_CONFIGS_NAN_CAT_ENCODED +
-    DATASET_CONFIGS_NO_NAN_ENCODED
-)
+# # === All dataset configs together (optional master list)
+# ALL_DATASET_CONFIGS = (
+#     DATASET_CONFIGS_NAN_CAT_NATIVE +
+#     DATASET_CONFIGS_NAN_CAT_ENCODED +
+#     DATASET_CONFIGS_NO_NAN_ENCODED
+# )
 
 
 
