@@ -26,6 +26,10 @@ from typing import List, Optional
 from src.data_preparation.feature_engineering import classify_anemia_dataset, classify_kidney_function, compute_apri
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import LabelEncoder
+import logging
+import utils
+utils.configure_logging(verbose=True)
+log = logging.getLogger(__name__)
 
 # -------------------------
 # Missing data flags
@@ -522,6 +526,10 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     elif dataset_config.icd_strategy == "categories":
         df["diagnosis"] = df["diagnosis"].apply(categorize_icd)
 
+    # Convert object columns to category
+    obj_cols = df.select_dtypes(include="object").columns
+    df[obj_cols] = df[obj_cols].astype("category")
+
     # Split by patient_id to avoid leakage
     X_train, X_test, y_train, y_test = train_test_split_by_patient(
         df, 
@@ -564,26 +572,27 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
 
     return X_train, X_test, y_train, y_test, transformers
 
-# -------------------------
-# Generate multiple datasets from configurations
-# -------------------------
-def generate_all_datasets(raw_df, target_col, dataset_configs):
-    """
-    Generates datasets for each DatasetConfig.
-    Returns dict: {config.name: (X_train, X_test, y_train, y_test, transformers)}
-    """
-    all_data = {}
-    for config in dataset_configs:
-        X_train, X_test, y_train, y_test, transformers = prepare_dataset(raw_df, target_col, config)
-        all_data[config.name] = {
-            "X_train": X_train,
-            "X_test": X_test,
-            "y_train": y_train,
-            "y_test": y_test,
-            "transformers": transformers,
-            "config": config,
-        }
-    return all_data
+# # -------------------------
+# # Generate multiple datasets from configurations
+# # -------------------------
+# def generate_all_datasets(raw_df, target_col, dataset_configs):
+#     """
+#     Generates datasets for each DatasetConfig.
+#     Returns dict: {config.name: (X_train, X_test, y_train, y_test, transformers)}
+#     """
+#     all_data = {}
+#     for config in dataset_configs:
+#         log.info(f"Preparing dataset: {config.name}")
+#         X_train, X_test, y_train, y_test, transformers = prepare_dataset(raw_df, target_col, config)
+#         all_data[config.name] = {
+#             "X_train": X_train,
+#             "X_test": X_test,
+#             "y_train": y_train,
+#             "y_test": y_test,
+#             "transformers": transformers,
+#             "config": config,
+#         }
+#     return all_data
 
 # Example usage:
 
@@ -597,3 +606,57 @@ def generate_all_datasets(raw_df, target_col, dataset_configs):
 # Access dataset:
 # X_train = all_datasets['imputed_encoded_scaled']['X_train']
 # y_train = all_datasets['imputed_encoded_scaled']['y_train']
+
+# -------------------------
+# Print dataset information
+# -------------------------
+def inspect_dataset(config_name, data):
+    """
+    Print dataset information including shape, sample data, and transformers used.
+
+    Parameters:
+    - config_name (str): Name of the dataset configuration.
+    - data (dict): Dictionary with keys: 'X_train', 'X_test', 'y_train', 'y_test', 'transformers'.
+    """
+    print(f"\n=== Dataset: {config_name} ===")
+
+    X_train = data["X_train"]
+    X_test = data["X_test"]
+    y_train = data["y_train"]
+    y_test = data["y_test"]
+    transformers = data["transformers"]
+
+    # Dataset shapes
+    print(f"X_train shape: {X_train.shape}")
+    print(f"X_test shape:  {X_test.shape}")
+    print(f"y_train shape: {y_train.shape}")
+    print(f"y_test shape:  {y_test.shape}")
+
+    # Data type and memory info
+    print("\nX_train.info():")
+    print("-" * 20)
+    X_train.info()
+
+    print("\ny_train.info():")
+    print("-" * 20)
+    if hasattr(y_train, "info"):  # Series or DataFrame
+        y_train.info()
+    else:
+        print(f"Type: {type(y_train)} — Cannot call .info()")
+
+    # Sample data
+    print("\nX_train head():")
+    print(X_train.head())
+
+    print("\ny_train head():")
+    print(y_train.head())
+
+    # Transformers used
+    print("\nTransformers used:")
+    for name, transformer in transformers.items():
+        if isinstance(transformer, str):
+            print(f"  - {name}: {transformer}")
+        else:
+            print(f"  - {name}: {type(transformer).__name__}")
+
+    print("-" * 60)
