@@ -1,0 +1,105 @@
+lightgbm:
+  default:
+    classifier: {}
+
+    regressor: {}
+
+
+  default_class_unbalanced:
+    classifier:
+      is_unbalanced: true
+
+    regressor:
+      class_weight: balanced
+
+
+  fast_tree:
+    classifier:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 6
+      num_leaves: 15
+
+    regressor:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 6
+      num_leaves: 15
+
+
+  default:
+    classifier:
+      n_estimators: 1000
+      learning_rate: 0.05
+      max_depth: -1
+      num_leaves: 31
+      random_state: config.random_seed
+
+    regressor:
+      n_estimators: 1000
+      learning_rate: 0.05
+      max_depth: -1
+      num_leaves: 31
+      random_state: config.random_seed
+
+  deep_trees:
+    classifier:
+      n_estimators: 500
+      learning_rate: 0.01
+      max_depth: 20
+      num_leaves: 100
+      random_state: 42
+    regressor:
+      n_estimators: 500
+      learning_rate: 0.01
+      max_depth: 20
+      num_leaves: 100
+      random_state: 42
+
+catboost:
+  default:
+    classifier:
+      iterations: 500
+      learning_rate: 0.05
+      depth: 6
+      random_seed: 42
+    regressor:
+      iterations: 500
+      learning_rate: 0.05
+      depth: 6
+      random_seed: 42
+  # Add more param sets similarly...
+
+xgboost:
+  default:
+    classifier:
+      n_estimators: 1000
+      learning_rate: 0.05
+      max_depth: 6
+      random_state: 42
+    regressor:
+      n_estimators: 1000
+      learning_rate: 0.05
+      max_depth: 6
+      random_state: 42
+  # Add more param sets similarly...
+
+
+
+xgboost:
+  classifier:
+    class: xgboost.XGBClassifier
+    params:
+      n_estimators: 100
+      max_depth: 4
+      learning_rate: 0.1
+      objective: binary:logistic
+      use_label_encoder: false
+      eval_metric: logloss  # suppress warning
+  regressor:
+    class: xgboost.XGBRegressor
+    params:
+      n_estimators: 100
+      max_depth: 4
+      learning_rate: 0.1
+      objective: reg:squarederror
