@@ -26,7 +26,12 @@ from typing import List, Optional
 from src.data_preparation.feature_engineering import classify_anemia_dataset, classify_kidney_function, compute_apri
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import LabelEncoder
+import sys
+import os
 import logging
+# Add parent directory to sys.path to find config.py one level up
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import config
 import utils
 utils.configure_logging(verbose=True)
 log = logging.getLogger(__name__)
@@ -505,25 +510,24 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     df = raw_df.copy()
 
     # Add engineered features
-    for feat in dataset_config.engineered_features:
+    for feat in dataset_config["engineered_features"]:
         if feat == "anemia":
             df = classify_anemia_dataset(df)
         elif feat == "kidney":
             df = classify_kidney_function(df)
         elif feat == "liver":
             df = compute_apri(df)
-        # add more as needed
 
     # Apply deterministic transformations
-    if dataset_config.add_missing_flags:
+    if dataset_config["add_missing_flags"]:
         df = add_missing_indicators(df)
 
-    if dataset_config.apply_age_binning:
+    if dataset_config["apply_age_binning"]:
         df["age"] = categorize_age(df["age"])
 
-    if dataset_config.icd_strategy == "blocks":
+    if dataset_config["icd_strategy"] == "blocks":
         df = group_icd_to_blocks(df)
-    elif dataset_config.icd_strategy == "categories":
+    elif dataset_config["icd_strategy"] == "categories":
         df["diagnosis"] = df["diagnosis"].apply(categorize_icd)
 
     # Convert object columns to category
@@ -542,7 +546,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     transformers = {}
 
     # Encoding (fit on train only, transform both)
-    if dataset_config.encode:
+    if dataset_config["encode"]:
         encoders = fit_encoders(
             X_train,
             ordinal_cols=dataset_config.ordinal_cols,
@@ -553,7 +557,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         transformers['encoders'] = encoders
 
     # Imputation on numeric columns (fit on train, apply on test)
-    if dataset_config.impute:
+    if dataset_config["impute"]:
         numeric_cols = X_train.select_dtypes(include=[np.number]).columns
         X_train_num_imp, X_test_num_imp = impute_with_random_forest(
             X_train[numeric_cols], X_test[numeric_cols]
@@ -566,7 +570,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         transformers['imputer'] = "RandomForestImputer"  # or store fitted imputer model if desired
 
     # Scaling (fit scaler on train, apply on test)
-    if dataset_config.scale:
+    if dataset_config["scale"]:
         X_train, X_test, scaler = scale_features(X_train, X_test, return_scaler=True)
         transformers['scaler'] = scaler
 
