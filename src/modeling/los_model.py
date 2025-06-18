@@ -6,6 +6,10 @@ from sklearn.metrics import (
 )
 import pandas as pd
 import numpy as np
+import sys
+import os
+# Add parent directory to sys.path to find config.py one level up
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import config
 import utils
 

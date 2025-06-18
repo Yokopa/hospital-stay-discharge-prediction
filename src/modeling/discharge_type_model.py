@@ -5,9 +5,11 @@ from sklearn.metrics import (
     roc_auc_score,
     log_loss
 )
-from imblearn.over_sampling import SMOTE
+import sys
+import os
+# Add parent directory to sys.path to find config.py one level up
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import utils
-import config
 
 def train_discharge_pipeline(
     X_train, 
