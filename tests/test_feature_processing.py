@@ -123,8 +123,14 @@ def test_encode_decode_target(sample_data):
 
 def test_prepare_dataset(sample_data):
     df = sample_data.copy()
-    # Use one of predefined configs
-    dataset_config = config.DATASET_CONFIGS_NAN_CAT_NATIVE[1]
+    
+    # Load dataset configs from YAML (adjust path if needed)
+    dataset_configs = utils.load_yaml(config.DATASET_CONFIG_PATH)
+
+    # Choose the config you want to test by key
+    # For example, if your key is 'nan_cat_native_v1'
+    dataset_config = dataset_configs['nan']
+
     # If your prepare_dataset expects test_size and random_seed, pass them as needed
     X_train, X_test, y_train, y_test, _ = prepare_dataset(
         df,

@@ -1,6 +1,5 @@
 # Tests for feature_engineering functions: anemia, kidney, and APRI
 
-import pytest
 import pandas as pd
 import numpy as np
 
