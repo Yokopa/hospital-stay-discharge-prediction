@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 from collections import Counter
+import yaml
 import logging
+import os
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +44,10 @@ def configure_logging(verbose: bool):
         handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
         log.addHandler(handler)
 
+def load_yaml(path):
+    with open(path, "r") as f:
+        return yaml.safe_load(f)
+    
 # -----------------------------------#
 # Preprocessing utilities
 # -----------------------------------#
@@ -142,6 +148,7 @@ def generate_summary_statistics(
     # Summary statistics
     summary_stats = subset_df.describe().T
     summary_stats['missing_percentage'] = missing_percentage
+    summary_stats = summary_stats.sort_values(by='missing_percentage', ascending=True)
 
     if verbose:
         import logging
@@ -165,3 +172,17 @@ def compute_scale_pos_weight(y):
     neg = counter.get(0, 0)
     pos = counter.get(1, 0)
     return neg / pos if pos > 0 else 1.0  # avoid division by zero
+
+def save_results(result, args, target):
+    os.makedirs(args.save_path, exist_ok=True)
+    file_name = f"{target}_{args.dataset_key}_{args.model_name}_{args.step}.csv"
+    full_path = os.path.join(args.save_path, file_name)
+
+    if isinstance(result, dict):
+        df = pd.DataFrame([result])
+    else:
+        df = pd.DataFrame(result)
+
+    df.to_csv(full_path, index=False)
+    logging.info(f"Saved results to {full_path}")
+
