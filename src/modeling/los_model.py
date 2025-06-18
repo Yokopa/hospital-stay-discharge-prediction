@@ -4,7 +4,6 @@ from sklearn.metrics import (
     mean_absolute_error, r2_score, root_mean_squared_error,
     f1_score, precision_score, recall_score
 )
-from sklearn.preprocessing import label_binarize
 import pandas as pd
 import numpy as np
 import config
