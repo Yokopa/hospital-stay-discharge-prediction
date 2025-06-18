@@ -178,7 +178,7 @@ def replace_invalid_values(
     for col in cols_to_check:
         if col not in df.columns:
             if verbose:
-                print(f"Warning: column '{col}' not found in dataframe.")
+                log.info(f"Warning: column '{col}' not found in dataframe.")
 
     # ------------------------------------------------------------------ #
     # Remove INRiH = 9999.0 by replacing with NaN 
@@ -253,9 +253,9 @@ def filter_adults(
     age_column: str = "age",
     min_age: int = 18,
     max_age: int = 120,
-    save: bool = True,
+    save: bool = False,
     save_path: str = None,
-    verbose: bool = False
+    verbose: bool = True
 ) -> pd.DataFrame:
     """
     Filters the DataFrame to include only adult patients within a realistic age range.
@@ -290,10 +290,55 @@ def filter_adults(
 
     return adults_df
 
+def clean_merged_data(
+    df: pd.DataFrame = None,
+    missing_threshold: float = None,
+    save: bool = False,
+    save_path: str = None,
+    verbose: bool = False
+) -> pd.DataFrame:
+    """
+    Wrapper function to clean merged data by replacing invalid values, filtering adults,
+    and applying missingness threshold filtering.
+
+    Args:
+        df (pd.DataFrame, optional): Input dataframe. Loads from config if None.
+        missing_threshold (float, optional): Threshold to filter columns by missingness.
+        save (bool): Whether to save cleaned data.
+        save_path (str, optional): Path to save cleaned data.
+        verbose (bool): Verbosity flag.
+
+    Returns:
+        pd.DataFrame: Cleaned dataframe.
+    """
+    log.info("Starting cleaning pipeline...")
+
+    if df is None:
+        df = utils.load_csv(config.MERGED_DATA_PATH)
+        log.info(f"Loaded data with shape {df.shape}")
+
+    df = replace_invalid_values(df, save=False, verbose=verbose)
+    df = filter_adults(df, save=False, verbose=verbose)
+
+    if missing_threshold is None:
+        missing_threshold = config.MISSING_THRESHOLD
+
+    missing_percentage = (df.isnull().sum() / len(df)) * 100
+    cols_to_keep = missing_percentage[missing_percentage <= missing_threshold].index
+    df = df.loc[:, cols_to_keep]
+    log.info(f"Filtered columns with missingness > {missing_threshold}%, final shape: {df.shape}")
+
+    if save:
+        if save_path is None:
+            save_path = config.CLEANED_MERGED_DATA_PATH
+        utils.save_csv(df, save_path)
+        log.info(f"Saved cleaned data to {save_path}")
+
+    return df
+
 if __name__ == "__main__":
     utils.configure_logging(verbose=True)
 
-    merged_data = integrate_data(save=False, verbose=True) # Let the function load the data internally the cleaned datasets to merge
-    cleaned_merged_data = replace_invalid_values(merged_data, save=False, verbose=True)
-    cleaned_merged_data = filter_adults(df=cleaned_merged_data, save=True, save_path=config.CLEANED_MERGED_DATA_PATH, verbose=True)
-    utils.generate_summary_statistics(cleaned_merged_data, start_col=4, save_path = config.LAB_TEST_STATISTICS, verbose=False)
+    merged_data = integrate_data(save=False, verbose=True)
+    cleaned_data = clean_merged_data(merged_data, save=True, verbose=True)
+    utils.generate_summary_statistics(cleaned_data, start_col=4, save_path=config.LAB_TEST_STATISTICS, verbose=False)
