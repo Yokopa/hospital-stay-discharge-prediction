@@ -1,74 +1,72 @@
+# -----------------------
+# lightGBM parameter sets
+# -----------------------
+
 lightgbm:
+# -----------------------
   default:
-    classifier: {}
 
-    regressor: {}
-
-
-  default_class_unbalanced:
     classifier:
+      class: "LGBMClassifier"
+      params: {}
+
+    regressor:
+      class: "LGBMRegressor"
+      params: {}
+# -----------------------
+  default_balanced:
+
+    classifier:
+      class: "LGBMClassifier"
       is_unbalanced: true
 
     regressor:
-      class_weight: balanced
+      class: "LGBMRegressor"
+# -----------------------
 
 
-  fast_tree:
-    classifier:
-      n_estimators: 100
-      learning_rate: 0.1
-      max_depth: 6
-      num_leaves: 15
-
-    regressor:
-      n_estimators: 100
-      learning_rate: 0.1
-      max_depth: 6
-      num_leaves: 15
-
-
-  default:
-    classifier:
-      n_estimators: 1000
-      learning_rate: 0.05
-      max_depth: -1
-      num_leaves: 31
-      random_state: config.random_seed
-
-    regressor:
-      n_estimators: 1000
-      learning_rate: 0.05
-      max_depth: -1
-      num_leaves: 31
-      random_state: config.random_seed
-
-  deep_trees:
-    classifier:
-      n_estimators: 500
-      learning_rate: 0.01
-      max_depth: 20
-      num_leaves: 100
-      random_state: 42
-    regressor:
-      n_estimators: 500
-      learning_rate: 0.01
-      max_depth: 20
-      num_leaves: 100
-      random_state: 42
-
+# -----------------------
+# Catboost parameter sets
+# -----------------------
 catboost:
+# -----------------------
   default:
+
     classifier:
-      iterations: 500
-      learning_rate: 0.05
-      depth: 6
-      random_seed: 42
+      class: "CatBoostClassifier"
+      params: {}
+
     regressor:
-      iterations: 500
-      learning_rate: 0.05
-      depth: 6
-      random_seed: 42
-  # Add more param sets similarly...
+      class: "CatBoostRegressor"
+      params: {}
+# -----------------------
+  default_balanced:
+
+    classifier:
+      class: "CatBoostClassifier"
+      params:
+        auto_class_weights: Balanced
+
+    regressor:
+      class: "CatBoostRegressor"
+      params: {}
+# -----------------------
+
+
+
+
+  default_balanced:
+    classifier:
+      class: "CatBoostClassifier"
+      params:
+        auto_class_weights: Balanced
+
+    regressor:
+      class: "CatBoostRegressor"
+      params: {}
+
+
+
 
 xgboost:
   default:
@@ -103,3 +101,64 @@ xgboost:
       max_depth: 4
       learning_rate: 0.1
       objective: reg:squarederror
+
+
+
+# lightgbm
+
+  # fast_tree:
+  #   classifier:
+  #     n_estimators: 100
+  #     learning_rate: 0.1
+  #     max_depth: 6
+  #     num_leaves: 15
+
+  #   regressor:
+  #     n_estimators: 100
+  #     learning_rate: 0.1
+  #     max_depth: 6
+  #     num_leaves: 15
+
+
+  # default:
+  #   classifier:
+  #     n_estimators: 1000
+  #     learning_rate: 0.05
+  #     max_depth: -1
+  #     num_leaves: 31
+  #     random_state: config.random_seed
+
+  #   regressor:
+  #     n_estimators: 1000
+  #     learning_rate: 0.05
+  #     max_depth: -1
+  #     num_leaves: 31
+  #     random_state: config.random_seed
+
+  # deep_trees:
+  #   classifier:
+  #     n_estimators: 500
+  #     learning_rate: 0.01
+  #     max_depth: 20
+  #     num_leaves: 100
+  #     random_state: 42
+  #   regressor:
+  #     n_estimators: 500
+  #     learning_rate: 0.01
+  #     max_depth: 20
+  #     num_leaves: 100
+  #     random_state: 42
+
+
+
+# catboost
+    # classifier:
+    #   iterations: 500
+    #   learning_rate: 0.05
+    #   depth: 6
+    #   random_seed: 42
+    # regressor:
+    #   iterations: 500
+    #   learning_rate: 0.05
+    #   depth: 6
+    #   random_seed: 42
