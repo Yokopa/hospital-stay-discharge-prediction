@@ -173,16 +173,69 @@ def compute_scale_pos_weight(y):
     pos = counter.get(1, 0)
     return neg / pos if pos > 0 else 1.0  # avoid division by zero
 
-def save_results(result, args, target):
-    os.makedirs(args.save_path, exist_ok=True)
-    file_name = f"{target}_{args.dataset_key}_{args.model_name}_{args.step}.csv"
-    full_path = os.path.join(args.save_path, file_name)
+# def save_results(result, args, target):
+#     os.makedirs(args.save_path, exist_ok=True)
+#     file_name = f"{target}_{args.dataset_key}_{args.model_name}_{args.step}.csv"
+#     full_path = os.path.join(args.save_path, file_name)
 
-    if isinstance(result, dict):
-        df = pd.DataFrame([result])
+#     if isinstance(result, dict):
+#         df = pd.DataFrame([result])
+#     else:
+#         df = pd.DataFrame(result)
+
+#     df.to_csv(full_path, index=False)
+#     logging.info(f"Saved results to {full_path}")
+
+def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, cat_cols):
+    """
+    Train a classifier (CatBoost, LightGBM, or sklearn-compatible) and return predictions.
+
+    Parameters
+    ----------
+    clf_class : class
+        The classifier class (e.g., LGBMClassifier, CatBoostClassifier).
+    clf_params : dict
+        Parameters for the classifier.
+    X_train, X_test : pd.DataFrame
+        Feature sets.
+    y_train, y_test : pd.Series
+        Targets.
+    cat_cols : list
+        Names of categorical columns.
+
+    Returns
+    -------
+    classifier : fitted classifier
+    y_pred : predicted classes
+    y_pred_proba : predicted probabilities (if available, else None)
+    """
+    if clf_class.__name__ == "CatBoostClassifier":
+        from catboost import Pool
+        cat_indices = [X_train.columns.get_loc(col) for col in cat_cols]
+        train_pool = Pool(X_train, y_train, cat_features=cat_indices)
+        test_pool = Pool(X_test, y_test, cat_features=cat_indices)
+        clf = clf_class(**clf_params)
+        clf.fit(train_pool, eval_set=test_pool, verbose=0)
+        y_pred = clf.predict(test_pool)
+        y_pred_proba = clf.predict_proba(test_pool)
+        return clf, y_pred, y_pred_proba
+
+    elif clf_class.__name__ == "LGBMClassifier":
+        clf = clf_class(**clf_params)
+        clf.fit(X_train, y_train, categorical_feature=cat_cols)
+        y_pred = clf.predict(X_test)
+        y_pred_proba = clf.predict_proba(X_test)
+        return clf, y_pred, y_pred_proba
+
     else:
-        df = pd.DataFrame(result)
+        # fallback: any sklearn-like classifier
+        clf = clf_class(**clf_params)
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
 
-    df.to_csv(full_path, index=False)
-    logging.info(f"Saved results to {full_path}")
+        try:
+            y_pred_proba = clf.predict_proba(X_test)
+        except AttributeError:
+            y_pred_proba = None
 
+        return clf, y_pred, y_pred_proba
