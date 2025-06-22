@@ -37,9 +37,9 @@ def train_discharge_pipeline(
         dict: Contains trained model and classification metrics.
     """
     # Resolve class string to actual class object
-    clf_name = model_cfg[model_name]["classifier"]["class"]
+    clf_name = model_cfg["classifier"]["class"]
     clf_class = config.CLASSIFIER_CLASSES[clf_name]
-    clf_params = model_cfg[model_name]["classifier"].get("params", {}).copy()
+    clf_params = model_cfg["classifier"].get("params", {}).copy()
 
     categorical_features = X_train.select_dtypes(include=["category", "object"]).columns.tolist()
 

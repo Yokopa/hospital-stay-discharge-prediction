@@ -81,9 +81,9 @@ def train_los_two_step_pipeline(
 
     categorical_features = X_train_cls.select_dtypes(include=["category", "object"]).columns.tolist()
 
-    # --- FIX: Use model_name to access correct config sub-dict ---
-    clf_name = model_cfg[model_name]["classifier"]["class"]
-    clf_params = model_cfg[model_name]["classifier"]["params"].copy()
+    # --- Use model_name to access correct config sub-dict ---
+    clf_name = model_cfg["classifier"]["class"]
+    clf_params = model_cfg["classifier"]["params"].copy()
     clf_params["random_state"] = config.RANDOM_SEED
 
     clf_class = config.CLASSIFIER_CLASSES[clf_name]
@@ -116,14 +116,17 @@ def train_los_two_step_pipeline(
     except Exception as e:
         print(f"[Warning] ROC AUC or Log Loss computation failed: {e}")
 
-    reg_name = model_cfg[model_name]["regressor"]["class"]
-    reg_params = model_cfg[model_name]["regressor"]["params"].copy()
+    reg_name = model_cfg["regressor"]["class"]
+    reg_params = model_cfg["regressor"]["params"].copy()
     reg_params["random_state"] = config.RANDOM_SEED
 
     reg_class = config.REGRESSOR_CLASSES[reg_name]
     regressor = reg_class(**reg_params)
-    regressor.fit(X_train, y_train)
-    y_pred_reg = regressor.predict(X_test)
+    regressor, y_pred_reg = utils.train_regressor(
+    reg_class, reg_params, X_train, y_train, X_test, categorical_features
+    )
+    # regressor.fit(X_train, y_train)
+    # y_pred_reg = regressor.predict(X_test)
 
     rmse = root_mean_squared_error(y_test, y_pred_reg)
     mae = mean_absolute_error(y_test, y_pred_reg)
@@ -157,3 +160,29 @@ def train_los_two_step_pipeline(
         "rmse_long": rmse_long,
         "threshold": threshold
     }
+
+def compare_los_thresholds(X_train, X_test, y_train, y_test, thresholds=[7, 14, 30], model_cfg=None, model_name=None, dataset_name=None):
+    results = []
+    for th in thresholds:
+        result = train_los_two_step_pipeline(
+            X_train, X_test, y_train, y_test,
+            threshold=th,
+            model_name=model_name,
+            model_cfg=model_cfg
+        )
+        results.append({
+            "Dataset": dataset_name,
+            "Threshold": th,
+            "F1 Score": result["f1_score"],
+            "Precision": result["precision"],
+            "Recall": result["recall"],
+            "Balanced Accuracy": result["balanced_accuracy"],
+            "ROC AUC": result["roc_auc"],
+            "Log Loss": result["log_loss"],
+            "RMSE (Overall)": result["rmse"],
+            "MAE (Overall)": result["mae"],
+            "R2 Score": result["r2"],
+            "RMSE (Short Stay)": result.get("rmse_short"),
+            "RMSE (Long Stay)": result.get("rmse_long"),
+        })
+    return pd.DataFrame(results)
