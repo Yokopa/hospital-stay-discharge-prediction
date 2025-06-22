@@ -190,24 +190,22 @@ def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, ca
     """
     Train a classifier (CatBoost, LightGBM, or sklearn-compatible) and return predictions.
 
-    Parameters
-    ----------
-    clf_class : class
-        The classifier class (e.g., LGBMClassifier, CatBoostClassifier).
-    clf_params : dict
-        Parameters for the classifier.
-    X_train, X_test : pd.DataFrame
-        Feature sets.
-    y_train, y_test : pd.Series
-        Targets.
-    cat_cols : list
-        Names of categorical columns.
+    Args:
+        clf_class : class
+            The classifier class (e.g., LGBMClassifier, CatBoostClassifier).
+        clf_params : dict
+            Parameters for the classifier.
+        X_train, X_test : pd.DataFrame
+            Feature sets.
+        y_train, y_test : pd.Series
+            Targets.
+        cat_cols : list
+            Names of categorical columns.
 
-    Returns
-    -------
-    classifier : fitted classifier
-    y_pred : predicted classes
-    y_pred_proba : predicted probabilities (if available, else None)
+    Returns:
+        classifier : fitted classifier
+        y_pred : predicted classes
+        y_pred_proba : predicted probabilities (if available, else None)
     """
     if clf_class.__name__ == "CatBoostClassifier":
         from catboost import Pool
@@ -239,3 +237,145 @@ def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, ca
             y_pred_proba = None
 
         return clf, y_pred, y_pred_proba
+    
+def train_regressor(reg_class, reg_params, X_train, y_train, X_test, categorical_features):
+    """
+    Train a regressor (CatBoost, LightGBM, or sklearn-compatible) and return predictions.
+
+    Args:
+        reg_class : class
+            The regressor class (e.g., LGBMRegressor, CatBoostRegressor).
+        reg_params : dict
+            Parameters for the regressor.
+        X_train, X_test : pd.DataFrame
+            Feature sets.
+        y_train : pd.Series
+            Target values.
+        categorical_features : list
+            Names of categorical columns.
+
+    Returns:
+        regressor : fitted model
+        y_pred : predictions on X_test
+    """
+    if reg_class.__name__ == "CatBoostRegressor":
+        from catboost import Pool
+        cat_indices = [X_train.columns.get_loc(col) for col in categorical_features]
+        train_pool = Pool(X_train, y_train, cat_features=cat_indices)
+        test_pool = Pool(X_test, cat_features=cat_indices)
+        regressor = reg_class(**reg_params)
+        regressor.fit(train_pool)
+        y_pred = regressor.predict(test_pool)
+
+    elif reg_class.__name__ == "LGBMRegressor":
+        regressor = reg_class(**reg_params)
+        regressor.fit(X_train, y_train, categorical_feature=categorical_features)
+        y_pred = regressor.predict(X_test)
+
+    else:
+        # fallback for scikit-learn-like regressors
+        regressor = reg_class(**reg_params)
+        regressor.fit(X_train, y_train)
+        y_pred = regressor.predict(X_test)
+
+    return regressor, y_pred
+
+# IS THIS USEFUL?
+# def display_comparison_table(
+#     results_df,
+#     index_col="Model",
+#     dataset_params=None,
+#     model_params=None,
+#     save=False,
+#     save_dir="comparison_outputs",
+#     to_markdown=False  # New flag
+# ):
+#     """
+#     Display and optionally save comparison metrics tables, highlighting best results per dataset.
+
+#     Parameters
+#     ----------
+#     results_df : pd.DataFrame
+#         Must contain 'Dataset', index_col, and metric columns.
+
+#     index_col : str, default='Model'
+#         Column to use as the index (e.g., "Model" or "Threshold").
+
+#     dataset_params : dict or None
+#         Optional dictionary with dataset parameter info for saving.
+
+#     model_params : dict or None
+#         Optional dictionary with model parameter info for saving.
+
+#     save : bool, default=False
+#         If True, saves pivot tables and params to CSV files in save_dir.
+
+#     save_dir : str, default="comparison_outputs"
+#         Directory where CSV files will be saved.
+
+#     to_markdown : bool, default=False
+#         If True, prints tables in Markdown format for Jupyter or README use.
+#     """
+
+#     # Create dir if saving
+#     if save and not os.path.exists(save_dir):
+#         os.makedirs(save_dir)
+
+#     lower_better = {"Log Loss", "RMSE (Overall)", "MAE (Overall)"}
+
+#     metrics = [
+#         "F1 Score", "Precision", "Recall", "Balanced Accuracy", "ROC AUC",
+#         "Log Loss", "RMSE (Overall)", "MAE (Overall)", "R2 Score"
+#     ]
+
+#     saved_files = []
+
+#     for metric in metrics:
+#         print(f"\n--- {metric} ---")
+#         if metric not in results_df.columns:
+#             print(f"{metric} not available in this results_df.")
+#             continue
+
+#         pivot = results_df.pivot(index=index_col, columns="Dataset", values=metric)
+
+#         def highlight_best(s):
+#             if metric in lower_better:
+#                 is_best = s == s.min()
+#             else:
+#                 is_best = s == s.max()
+#             return ['**{:.3f}**'.format(v) if best else '{:.3f}'.format(v) for v, best in zip(s, is_best)]
+
+#         # Apply highlighting
+#         highlighted = pivot.apply(highlight_best)
+
+#         if to_markdown:
+#             # Print as markdown table
+#             markdown_df = highlighted.copy()
+#             markdown_df.index.name = index_col
+#             print(markdown_df.to_markdown())
+#         else:
+#             # Print row by row (text style)
+#             for idx, row in highlighted.iterrows():
+#                 print(f"{idx}: " + " | ".join(row))
+
+#         if save:
+#             filename = f"{save_dir}/comparison_{index_col}_{metric.replace(' ', '_').replace('(', '').replace(')', '')}.csv"
+#             pivot.round(5).to_csv(filename)
+#             saved_files.append(filename)
+
+#     if save:
+#         if dataset_params:
+#             ds_params_file = f"{save_dir}/dataset_params.csv"
+#             pd.DataFrame.from_dict(dataset_params, orient='index').to_csv(ds_params_file)
+#             saved_files.append(ds_params_file)
+
+#         if model_params:
+#             model_params_file = f"{save_dir}/model_params.csv"
+#             pd.DataFrame.from_dict(model_params, orient='index').to_csv(model_params_file)
+#             saved_files.append(model_params_file)
+
+#         print("\nSaved files:")
+#         for f in saved_files:
+#             print(f" - {f}")
+
+#     return saved_files if save else None
