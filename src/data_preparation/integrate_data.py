@@ -337,7 +337,6 @@ def clean_merged_data(
     return df
 
 if __name__ == "__main__":
-    utils.configure_logging(verbose=True)
 
     merged_data = integrate_data(save=False, verbose=True)
     cleaned_data = clean_merged_data(merged_data, save=True, verbose=True)

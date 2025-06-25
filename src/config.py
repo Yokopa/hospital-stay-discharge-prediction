@@ -30,49 +30,49 @@ RESULTS_DIR = BASE_DIR / "results"
 # === Raw Data Paths ===
 
 # Full datasets (commented out when testing)
-# LAB_DATA_PATH = RAW_DIR / "RITM0154633_lab.csv"
-# CLINICAL_DATA_PATH = RAW_DIR / "RITM0154633_main.csv"
+LAB_DATA_PATH = RAW_DIR / "RITM0154633_lab.csv"
+CLINICAL_DATA_PATH = RAW_DIR / "RITM0154633_main.csv"
 
 #------------------------------------------------------------------
 # For testing locally with smaller subsets
 
-# Paths to save the smaller subsets
-RAW_SUBSETS_DIR = TEST_DIR / "subsets"
-LAB_SAMPLE_PATH = TEST_DIR / "subsets/sample_lab.csv"
-CLINICAL_SAMPLE_PATH = TEST_DIR / "subsets/sample_main.csv"
-# Choose which to use by default:
-LAB_DATA_PATH = LAB_SAMPLE_PATH
-CLINICAL_DATA_PATH = CLINICAL_SAMPLE_PATH
+# # Paths to save the smaller subsets
+# RAW_SUBSETS_DIR = TEST_DIR / "subsets"
+# LAB_SAMPLE_PATH = TEST_DIR / "subsets/sample_lab.csv"
+# CLINICAL_SAMPLE_PATH = TEST_DIR / "subsets/sample_main.csv"
+# # Choose which to use by default:
+# LAB_DATA_PATH = LAB_SAMPLE_PATH
+# CLINICAL_DATA_PATH = CLINICAL_SAMPLE_PATH
 #------------------------------------------------------------------
 
 # === Preprocessed Data Paths ===
 # Paths to save the full preprocessed data (commented out when testing)
-# CLEANED_LAB_PATH = INTERIM_DIR / "cleaned_lab_data.csv"
-# CLEANED_CLINICAL_PATH = INTERIM_DIR / "cleaned_clinical_data.csv"
-# MERGED_DATA_PATH = INTERIM_DIR / "merged_data.csv"
-# CLEANED_MERGED_DATA_PATH = INTERIM_DIR / "cleaned_merged_data.csv"
-# REFERENCE_TABLE_PATH = INTERIM_DIR / "selected_tests_reference_table.csv"
-# LAB_TEST_STATISTICS = INTERIM_DIR / "lab_test_statistics.csv"
+CLEANED_LAB_PATH = INTERIM_DIR / "cleaned_lab_data.csv"
+CLEANED_CLINICAL_PATH = INTERIM_DIR / "cleaned_clinical_data.csv"
+MERGED_DATA_PATH = INTERIM_DIR / "merged_data.csv"
+CLEANED_MERGED_DATA_PATH = INTERIM_DIR / "cleaned_merged_data.csv"
+REFERENCE_TABLE_PATH = INTERIM_DIR / "selected_tests_reference_table.csv"
+LAB_TEST_STATISTICS = INTERIM_DIR / "lab_test_statistics.csv"
 
 #------------------------------------------------------------------
-# For testing locally with smaller subsets
-INTERIM_SUBSETS_DIR = TEST_DIR / "subsets"
+# # For testing locally with smaller subsets
+# INTERIM_SUBSETS_DIR = TEST_DIR / "subsets"
 
-# Preprocessed subset paths for testing
-CLEANED_LAB_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "cleaned_sample_lab_data.csv"
-CLEANED_CLINICAL_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "cleaned_sample_clinical_data.csv"
-MERGED_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "merged_sample_data.csv"
-CLEANED_MERGED_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "cleaned_merged_sample_data.csv"
-REFERENCE_TABLE_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "selected_tests_reference_table_sample.csv"
-LAB_TEST_STATISTICS_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "lab_test_statistics_sample.csv"
+# # Preprocessed subset paths for testing
+# CLEANED_LAB_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "cleaned_sample_lab_data.csv"
+# CLEANED_CLINICAL_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "cleaned_sample_clinical_data.csv"
+# MERGED_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "merged_sample_data.csv"
+# CLEANED_MERGED_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "cleaned_merged_sample_data.csv"
+# REFERENCE_TABLE_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "selected_tests_reference_table_sample.csv"
+# LAB_TEST_STATISTICS_SAMPLE_PATH = INTERIM_SUBSETS_DIR / "lab_test_statistics_sample.csv"
 
-# Switch between full or sample
-CLEANED_LAB_PATH = CLEANED_LAB_SAMPLE_PATH
-CLEANED_CLINICAL_PATH = CLEANED_CLINICAL_SAMPLE_PATH
-MERGED_DATA_PATH = MERGED_SAMPLE_PATH
-CLEANED_MERGED_DATA_PATH = CLEANED_MERGED_SAMPLE_PATH
-REFERENCE_TABLE_PATH = REFERENCE_TABLE_SAMPLE_PATH
-LAB_TEST_STATISTICS = LAB_TEST_STATISTICS_SAMPLE_PATH
+# # Switch between full or sample
+# CLEANED_LAB_PATH = CLEANED_LAB_SAMPLE_PATH
+# CLEANED_CLINICAL_PATH = CLEANED_CLINICAL_SAMPLE_PATH
+# MERGED_DATA_PATH = MERGED_SAMPLE_PATH
+# CLEANED_MERGED_DATA_PATH = CLEANED_MERGED_SAMPLE_PATH
+# REFERENCE_TABLE_PATH = REFERENCE_TABLE_SAMPLE_PATH
+# LAB_TEST_STATISTICS = LAB_TEST_STATISTICS_SAMPLE_PATH
 #------------------------------------------------------------------
 
 # === Modeling Configuration ===
@@ -81,12 +81,17 @@ DISCHARGE_TARGET = "discharge_type"
 RANDOM_SEED = 42
 CV_FOLDS = 5
 TEST_SIZE = 0.20
-LOS_TARGET_THRESHOLDS = [7, 14, 30]
-LOS_CLASSIFICATION_BINS = [0, 3, 7, 14, 30, float('inf')] # right=False: includes left edge
+LOS_TARGET_THRESHOLDS = [[3], [4], [5], [7], [10], [14], [30]]
+# LOS_TARGET_THRESHOLDS = [
+#     [3],           # binary threshold
+#     [7, 14],       # multiclass with two thresholds → 3 classes
+#     [3, 7, 10, 14] # multiclass with four thresholds → 5 classes
+# ]
+LOS_CLASSIFICATION_BINS = [0, 3, 6, float('inf')] # right=False: includes left edge
 
 # === Paths to dataset and model configurations ===
-DATASET_CONFIG_PATH = "/home/anna/Desktop/Master_thesis/hospital-stay-discharge-prediction/config_experiment/dataset.yaml"
-MODEL_CONFIG_PATH = "/home/anna/Desktop/Master_thesis/hospital-stay-discharge-prediction/config_experiment/params.yaml"
+DATASET_CONFIG_PATH = "/home/anna/Desktop/Master_thesis/hospital-stay-discharge-prediction/config_experiment/dataset.yml"
+MODEL_CONFIG_PATH = "/home/anna/Desktop/Master_thesis/hospital-stay-discharge-prediction/config_experiment/params.yml"
 
 # === Default Model Configuration ===
 REGRESSOR_CLASSES = {
@@ -256,12 +261,12 @@ DISCHARGE_TRANSLATION_CLIN = {
     "Entl.ext.Instit": "Institution",
     "Entl. in ex.KH": "Another hospital",
     "Verstorben": "Deceased",
-    "Entl. Tarifbere": "Discharge tariff status",
-    "Entl.eigner Wun": "Discharge on patient's own request",
-    "Wartepat. Entl.": "Discharge of a waiting patient",
-    "Ambulanz exInst": "Ambulance to external institution",
-    "Rückv n. ambBeh": "Transfer back from another institution",
-    "Besuch Krankh.": "Visit to the hospital"
+    "Entl. Tarifbere": "Tariff status", # Discharge tariff status
+    "Entl.eigner Wun": "Patient's request", # Discharge on patient's own request
+    "Wartepat. Entl.": "Waiting patient", # Discharge of a waiting patient
+    "Ambulanz exInst": "Ambulance transfer", # Ambulance to external institution
+    "Rückv n. ambBeh": "Transfer back", # Transfer back from another institution
+    "Besuch Krankh.": "Hospital visit" # Visit to the hospital
 }
 
 # === Data filtering ===
@@ -276,13 +281,12 @@ REMOVE_TESTS = [
 LOS_TARGET = "length_of_stay_days"
 DISCHARGE_TARGET = "discharge_type"
 
-DISCHARGE_TARGET_CATEGORIES_4 = [
-    "Home", "Another hospital", "Institution", "Deceased"
-]
+DISCHARGE_CATEGORIES_NUMBER = 4  # change this to 3 to group into fewer classes
 
-DISCHARGE_TARGET_CATEGORIES_3 = [
-    "Home", "Another hospital/institution", "Deceased"
-]
+DISCHARGE_TARGET_CATEGORIES = {
+    3: ["Home", "Another hospital/institution", "Deceased"],
+    4: ["Home", "Another hospital", "Institution", "Deceased"]
+}
 
 ICD10_CATEGORIES = {
     "I": "Infectious diseases",

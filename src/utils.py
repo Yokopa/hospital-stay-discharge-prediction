@@ -1,9 +1,13 @@
 import pandas as pd
 import numpy as np
 from collections import Counter
+from sklearn.utils.class_weight import compute_sample_weight
 import yaml
 import logging
-import os
+from joblib import dump
+from sklearn.metrics import (
+    mean_absolute_error, r2_score, root_mean_squared_error,
+)
 
 log = logging.getLogger(__name__)
 
@@ -35,14 +39,12 @@ def save_csv(df, path):
     df.to_csv(path, index=False)
     log.info("Saved data to %s", path)
 
-def configure_logging(verbose: bool):
-    log.setLevel(logging.DEBUG if verbose else logging.INFO)
-
-    # Prevent duplicate handlers if already configured
-    if not log.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-        log.addHandler(handler)
+def configure_logging(verbose=True):
+    if not logging.getLogger().hasHandlers():
+        logging.basicConfig(
+            level=logging.DEBUG if verbose else logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s"
+        )
 
 def load_yaml(path):
     with open(path, "r") as f:
@@ -173,6 +175,9 @@ def compute_scale_pos_weight(y):
     pos = counter.get(1, 0)
     return neg / pos if pos > 0 else 1.0  # avoid division by zero
 
+def compute_sample_weights(y):
+    return compute_sample_weight(class_weight="balanced", y=y)
+
 # def save_results(result, args, target):
 #     os.makedirs(args.save_path, exist_ok=True)
 #     file_name = f"{target}_{args.dataset_key}_{args.model_name}_{args.step}.csv"
@@ -186,7 +191,7 @@ def compute_scale_pos_weight(y):
 #     df.to_csv(full_path, index=False)
 #     logging.info(f"Saved results to {full_path}")
 
-def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, cat_cols):
+def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, cat_cols, sample_weight_train=None):
     """
     Train a classifier (CatBoost, LightGBM, or sklearn-compatible) and return predictions.
 
@@ -197,10 +202,12 @@ def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, ca
             Parameters for the classifier.
         X_train, X_test : pd.DataFrame
             Feature sets.
-        y_train, y_test : pd.Series
+        y_train, y_test : pd.Series or np.ndarray
             Targets.
         cat_cols : list
             Names of categorical columns.
+        sample_weight_train : array-like, optional
+            Sample weights for training data.
 
     Returns:
         classifier : fitted classifier
@@ -210,7 +217,7 @@ def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, ca
     if clf_class.__name__ == "CatBoostClassifier":
         from catboost import Pool
         cat_indices = [X_train.columns.get_loc(col) for col in cat_cols]
-        train_pool = Pool(X_train, y_train, cat_features=cat_indices)
+        train_pool = Pool(X_train, y_train, cat_features=cat_indices, weight=sample_weight_train)
         test_pool = Pool(X_test, y_test, cat_features=cat_indices)
         clf = clf_class(**clf_params)
         clf.fit(train_pool, eval_set=test_pool, verbose=0)
@@ -220,23 +227,78 @@ def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, ca
 
     elif clf_class.__name__ == "LGBMClassifier":
         clf = clf_class(**clf_params)
-        clf.fit(X_train, y_train, categorical_feature=cat_cols)
+        fit_kwargs = {"categorical_feature": cat_cols}
+        if sample_weight_train is not None:
+            fit_kwargs["sample_weight"] = sample_weight_train
+        clf.fit(X_train, y_train, **fit_kwargs)
         y_pred = clf.predict(X_test)
         y_pred_proba = clf.predict_proba(X_test)
         return clf, y_pred, y_pred_proba
 
     else:
-        # fallback: any sklearn-like classifier
         clf = clf_class(**clf_params)
-        clf.fit(X_train, y_train)
+        fit_kwargs = {}
+        if sample_weight_train is not None:
+            fit_kwargs["sample_weight"] = sample_weight_train
+        clf.fit(X_train, y_train, **fit_kwargs)
         y_pred = clf.predict(X_test)
-
         try:
             y_pred_proba = clf.predict_proba(X_test)
         except AttributeError:
             y_pred_proba = None
-
         return clf, y_pred, y_pred_proba
+    
+# def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, cat_cols): # OLD VERSION: REMOVE IF ThE NEW ONE WORKS
+#     """
+#     Train a classifier (CatBoost, LightGBM, or sklearn-compatible) and return predictions.
+
+#     Args:
+#         clf_class : class
+#             The classifier class (e.g., LGBMClassifier, CatBoostClassifier).
+#         clf_params : dict
+#             Parameters for the classifier.
+#         X_train, X_test : pd.DataFrame
+#             Feature sets.
+#         y_train, y_test : pd.Series
+#             Targets.
+#         cat_cols : list
+#             Names of categorical columns.
+
+#     Returns:
+#         classifier : fitted classifier
+#         y_pred : predicted classes
+#         y_pred_proba : predicted probabilities (if available, else None)
+#     """
+#     if clf_class.__name__ == "CatBoostClassifier":
+#         from catboost import Pool
+#         cat_indices = [X_train.columns.get_loc(col) for col in cat_cols]
+#         train_pool = Pool(X_train, y_train, cat_features=cat_indices)
+#         test_pool = Pool(X_test, y_test, cat_features=cat_indices)
+#         clf = clf_class(**clf_params)
+#         clf.fit(train_pool, eval_set=test_pool, verbose=0)
+#         y_pred = clf.predict(test_pool)
+#         y_pred_proba = clf.predict_proba(test_pool)
+#         return clf, y_pred, y_pred_proba
+
+#     elif clf_class.__name__ == "LGBMClassifier":
+#         clf = clf_class(**clf_params)
+#         clf.fit(X_train, y_train, categorical_feature=cat_cols)
+#         y_pred = clf.predict(X_test)
+#         y_pred_proba = clf.predict_proba(X_test)
+#         return clf, y_pred, y_pred_proba
+
+#     else:
+#         # fallback: any sklearn-like classifier
+#         clf = clf_class(**clf_params)
+#         clf.fit(X_train, y_train)
+#         y_pred = clf.predict(X_test)
+
+#         try:
+#             y_pred_proba = clf.predict_proba(X_test)
+#         except AttributeError:
+#             y_pred_proba = None
+
+#         return clf, y_pred, y_pred_proba
     
 def train_regressor(reg_class, reg_params, X_train, y_train, X_test, categorical_features):
     """
@@ -379,3 +441,63 @@ def train_regressor(reg_class, reg_params, X_train, y_train, X_test, categorical
 #             print(f" - {f}")
 
 #     return saved_files if save else None
+
+def save_results(result, results_dir, model_prefix, now):
+    results_dir.mkdir(parents=True, exist_ok=True)
+    df = pd.DataFrame([result]) if isinstance(result, dict) else pd.DataFrame(result)
+    out_path = results_dir / f"{model_prefix}_results_{now}.csv"
+    df.to_csv(out_path, index=False)
+    logging.info(f"Saved results to {out_path}")
+
+    if "confusion_matrix" in result:
+        cm_path = results_dir / f"{model_prefix}_confusion_matrix.csv"
+        pd.DataFrame(result["confusion_matrix"]).to_csv(cm_path, index=False)
+        logging.info(f"Saved confusion matrix to {cm_path}")
+
+def save_models(result, models_dir, model_prefix):
+    models_dir.mkdir(parents=True, exist_ok=True)
+    if "classifier" in result:
+        clf_path = models_dir / f"{model_prefix}_classifier.joblib"
+        dump(result["classifier"], clf_path)
+        logging.info(f"Saved classifier to {clf_path}")
+    if "regressor" in result:
+        reg_path = models_dir / f"{model_prefix}_regressor.joblib"
+        dump(result["regressor"], reg_path)
+        logging.info(f"Saved regressor to {reg_path}")
+
+def compute_per_class_metrics(y_preds):
+    rmse_per_class = {}
+    mae_per_class = {}
+    r2_per_class = {}
+    all_true = []
+    all_pred = []
+
+    for pred in y_preds:
+        cls = pred.cls
+        y_true = pred.y_true
+        y_pred = pred.y_pred
+
+        if len(y_true) > 0:
+            rmse = root_mean_squared_error(y_true, y_pred)
+            mae = mean_absolute_error(y_true, y_pred)
+            r2 = r2_score(y_true, y_pred)
+
+            rmse_per_class[cls] = rmse
+            mae_per_class[cls] = mae
+            r2_per_class[cls] = r2
+
+            all_true.append(y_true)
+            all_pred.append(y_pred)
+
+    if all_true and all_pred:
+        all_true = np.concatenate(all_true)
+        all_pred = np.concatenate(all_pred)
+        overall_metrics = {
+            "rmse": root_mean_squared_error(all_true, all_pred),
+            "mae": mean_absolute_error(all_true, all_pred),
+            "r2": r2_score(all_true, all_pred)
+        }
+    else:
+        overall_metrics = {"rmse": None, "mae": None, "r2": None}
+
+    return rmse_per_class, mae_per_class, r2_per_class, overall_metrics

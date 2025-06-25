@@ -32,8 +32,7 @@ import logging
 # Add parent directory to sys.path to find config.py one level up
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import config
-import utils
-utils.configure_logging(verbose=True)
+
 log = logging.getLogger(__name__)
 
 # -------------------------
@@ -257,12 +256,14 @@ def transform_with_encoders(X, encoders):
 # -------------------------
 # Feature scaling
 # -------------------------
-def scale_features(X_train, X_test):
+def scale_features(X_train, X_test, return_scaler=False):
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
-    return X_train_scaled, X_test_scaled
-
+    if return_scaler:
+        return X_train_scaled, X_test_scaled, scaler
+    else:
+        return X_train_scaled, X_test_scaled
 
 # -------------------------
 # Imputation with Random Forest
@@ -415,49 +416,55 @@ def train_test_split_by_patient(
 # -------------------------
 # Target preprocessing utilities for classification tasks.
 # -------------------------
-def discharge_type_preprocess(
-    df: pd.DataFrame,
-    target_col: str = "discharge_type",
-    mode: str = "4_categories",
-    allowed_categories: List[str] = None
-) -> pd.DataFrame:
-    """
-    Preprocess and optionally filter the discharge_type target variable.
+def map_discharge_type(val, target_classes=config.DISCHARGE_CATEGORIES_NUMBER):
+    if target_classes == 3:
+        if val in ["Another hospital", "Institution"]:
+            return "Another hospital/institution"
+    return val
 
-    Args:
-        df (pd.DataFrame): Input DataFrame.
-        target_col (str): Name of the discharge type column.
-        mode (str): '4_categories' (default) or '3_categories'.
-                    - '3_categories' merges 'Discharge to another hospital' and 
-                      'Discharge to another institution' into a single category.
-        allowed_categories (List[str], optional): List of categories to retain after processing.
-                                                  If None, no filtering is applied.
+# def discharge_type_preprocess(
+#     df: pd.DataFrame,
+#     target_col: str = "discharge_type",
+#     mode: str = "4_categories",
+#     allowed_categories: List[str] = None
+# ) -> pd.DataFrame:
+#     """
+#     Preprocess and optionally filter the discharge_type target variable.
 
-    Returns:
-        pd.DataFrame: DataFrame with processed and optionally filtered discharge_type.
-    """
-    df = df.copy()
+#     Args:
+#         df (pd.DataFrame): Input DataFrame.
+#         target_col (str): Name of the discharge type column.
+#         mode (str): '4_categories' (default) or '3_categories'.
+#                     - '3_categories' merges 'Discharge to another hospital' and 
+#                       'Discharge to another institution' into a single category.
+#         allowed_categories (List[str], optional): List of categories to retain after processing.
+#                                                   If None, no filtering is applied.
 
-    if mode == "4_categories":
-        # No change to original values
-        df[target_col] = df[target_col].fillna("Unknown")
+#     Returns:
+#         pd.DataFrame: DataFrame with processed and optionally filtered discharge_type.
+#     """
+#     df = df.copy()
 
-    elif mode == "3_categories":
-        mapping = {
-            "Home": "Home",
-            "Another hospital": "Another hospital/institution",
-            "Institution": "Another hospital/institution",
-            "Deceased": "Deceased"
-        }
-        df[target_col] = df[target_col].map(mapping).fillna("Unknown")
+#     if mode == "4_categories":
+#         # No change to original values
+#         df[target_col] = df[target_col].fillna("Unknown")
 
-    else:
-        raise ValueError("Unsupported mode. Choose either '4_categories' or '3_categories'.")
+#     elif mode == "3_categories":
+#         mapping = {
+#             "Home": "Home",
+#             "Another hospital": "Another hospital/institution",
+#             "Institution": "Another hospital/institution",
+#             "Deceased": "Deceased"
+#         }
+#         df[target_col] = df[target_col].map(mapping).fillna("Unknown")
 
-    if allowed_categories is not None:
-        df = df[df[target_col].isin(allowed_categories)]
+#     else:
+#         raise ValueError("Unsupported mode. Choose either '4_categories' or '3_categories'.")
 
-    return df
+#     if allowed_categories is not None:
+#         df = df[df[target_col].isin(allowed_categories)]
+
+#     return df
 
 def encode_target(y_train, y_test):
     """
@@ -475,6 +482,11 @@ def encode_target(y_train, y_test):
     encoder = LabelEncoder()
     y_train_encoded = encoder.fit_transform(y_train)
     y_test_encoded = encoder.transform(y_test)
+    
+    print("LabelEncoder classes and their corresponding encoded labels:")
+    for idx, label in enumerate(encoder.classes_):
+        print(f"  {label} --> {idx}")
+    
     return y_train_encoded, y_test_encoded, encoder
 
 def decode_target(y_pred, encoder):
@@ -534,6 +546,17 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     obj_cols = df.select_dtypes(include="object").columns
     df[obj_cols] = df[obj_cols].astype("category")
 
+    # Map & filter discharge_type target if applicable
+    if target_col == "discharge_type":
+        discharge_classes = config.DISCHARGE_CATEGORIES_NUMBER
+        # Apply mapping function
+        df[target_col] = df[target_col].apply(lambda val: config.map_discharge_type(val, discharge_classes))
+
+        # Filter to allowed classes
+        allowed_classes = config.DISCHARGE_TARGET_CATEGORIES[discharge_classes]
+        df = df[df[target_col].isin(allowed_classes)].copy()
+        print(f"Classes after mapping: {sorted(df[target_col].unique())}")
+        
     # Split by patient_id to avoid leakage
     X_train, X_test, y_train, y_test = train_test_split_by_patient(
         df, 
@@ -547,10 +570,13 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
 
     # Encoding (fit on train only, transform both)
     if dataset_config["encode"]:
+        ordinal_cols = dataset_config.get("ordinal_cols", [])
+        ordinal_categories = dataset_config.get("ordinal_categories", {})
+        
         encoders = fit_encoders(
             X_train,
-            ordinal_cols=dataset_config.ordinal_cols,
-            ordinal_categories=dataset_config.ordinal_categories
+            ordinal_cols=ordinal_cols,
+            ordinal_categories=ordinal_categories
         )
         X_train = transform_with_encoders(X_train, encoders)
         X_test = transform_with_encoders(X_test, encoders)
@@ -616,7 +642,8 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
 # -------------------------
 def inspect_dataset(config_name, data):
     """
-    Print dataset information including shape, sample data, and transformers used.
+    Print detailed dataset information including shapes, data types, memory usage,
+    sample rows, and transformers used.
 
     Parameters:
     - config_name (str): Name of the dataset configuration.
@@ -628,39 +655,89 @@ def inspect_dataset(config_name, data):
     X_test = data["X_test"]
     y_train = data["y_train"]
     y_test = data["y_test"]
-    transformers = data["transformers"]
+    transformers = data.get("transformers", {})
 
-    # Dataset shapes
+    # Shapes
     print(f"X_train shape: {X_train.shape}")
     print(f"X_test shape:  {X_test.shape}")
     print(f"y_train shape: {y_train.shape}")
     print(f"y_test shape:  {y_test.shape}")
 
-    # Data type and memory info
+    # Info and memory usage for features
     print("\nX_train.info():")
     print("-" * 20)
     X_train.info()
 
+    print("\nX_test.info():")
+    print("-" * 20)
+    X_test.info()
+
+    # Info for targets
     print("\ny_train.info():")
     print("-" * 20)
-    if hasattr(y_train, "info"):  # Series or DataFrame
+    if hasattr(y_train, "info"):  # Pandas Series or DataFrame
         y_train.info()
     else:
         print(f"Type: {type(y_train)} — Cannot call .info()")
 
+    print("\ny_test.info():")
+    print("-" * 20)
+    if hasattr(y_test, "info"):
+        y_test.info()
+    else:
+        print(f"Type: {type(y_test)} — Cannot call .info()")
+
     # Sample data
     print("\nX_train head():")
+    print("-" * 20)
     print(X_train.head())
 
+    print("\nX_test head():")
+    print("-" * 20)
+    print(X_test.head())
+
     print("\ny_train head():")
+    print("-" * 20)
     print(y_train.head())
+
+    print("\ny_test head():")
+    print("-" * 20)
+    print(y_test.head())
 
     # Transformers used
     print("\nTransformers used:")
-    for name, transformer in transformers.items():
-        if isinstance(transformer, str):
-            print(f"  - {name}: {transformer}")
-        else:
-            print(f"  - {name}: {type(transformer).__name__}")
+    if not transformers:
+        print("  (None)")
+    else:
+        for name, transformer in transformers.items():
+            if isinstance(transformer, str):
+                print(f"  - {name}: {transformer}")
+            else:
+                print(f"  - {name}: {type(transformer).__name__}")
 
     print("-" * 60)
+
+
+
+    #     discharge_classes = dataset_config.get("discharge_classes", 4)  # default 4 classes
+
+    #     if discharge_classes == 3:
+    #         allowed_classes = ["Home", "Another hospital/institution", "Deceased"]
+
+    #         def map_discharge(val):
+    #             if val in ["Another hospital", "Institution"]:
+    #                 return "Another hospital/institution"
+    #             else:
+    #                 return val
+
+    #         df[target_col] = df[target_col].map(map_discharge)
+
+    #     elif discharge_classes == 4:
+    #         allowed_classes = ["Home", "Another hospital", "Institution", "Deceased"]
+
+    #     else:
+    #         raise ValueError(f"Unsupported discharge_classes: {discharge_classes}")
+        
+    #     # Filter rows to keep only allowed classes
+    #     df = df[df[target_col].isin(allowed_classes)].copy()
+    #     print(sorted(df[target_col].unique()))

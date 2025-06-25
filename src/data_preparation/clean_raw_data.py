@@ -82,7 +82,7 @@ def clean_lab_data(df: pd.DataFrame, save=True, verbose=False) -> pd.DataFrame:
     mask = df["numeric_result"].isna()
     filled = pd.to_numeric(df.loc[mask, "text_result"], errors="coerce")
     df.loc[mask, "numeric_result"] = filled
-    log.debug("Filled %d numeric_result values from text_result.", filled)
+    log.debug("Filled %d numeric_result values from text_result.", len(filled))
 
     # ------------------------------------------------------------------ #
     # Final drop of still-missing numeric_result
@@ -173,7 +173,6 @@ def clean_clinical_data(df: pd.DataFrame, save=True, verbose=False) -> pd.DataFr
     return df
 
 if __name__ == "__main__":
-    utils.configure_logging(verbose=True)
 
     lab_data = utils.load_csv(config.LAB_DATA_PATH)
     cleaned_lab_data = clean_lab_data(lab_data, save=True, verbose=True)
