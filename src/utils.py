@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from io import StringIO
 from collections import Counter
 from sklearn.utils.class_weight import compute_sample_weight
 import yaml
@@ -501,3 +502,10 @@ def compute_per_class_metrics(y_preds):
         overall_metrics = {"rmse": None, "mae": None, "r2": None}
 
     return rmse_per_class, mae_per_class, r2_per_class, overall_metrics
+
+
+def log_df_info(df, name="DataFrame"):
+    buffer = StringIO()
+    df.info(buf=buffer)
+    info_str = buffer.getvalue()
+    logging.info(f"{name} info:\n{info_str}")

@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+import logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import config
 import utils
@@ -28,9 +29,17 @@ def train_los_regression_baseline(X_train, X_test, y_train, y_test, model_cfg):
     regressor, y_pred_reg = utils.train_regressor(
         reg_class, reg_params, X_train, y_train, X_test, categorical_features
     )
-    rmse = root_mean_squared_error(y_test, y_pred_reg)
-    mae = mean_absolute_error(y_test, y_pred_reg)
-    r2 = r2_score(y_test, y_pred_reg)
+
+    # Inverse transform predictions if log transform was applied on target
+    if config.LOS_TRANSFORMATION.get("method", "none") == "log":
+        y_pred_reg = np.expm1(y_pred_reg)  # inverse of np.log1p
+        y_test_inv = np.expm1(y_test)
+    else:
+        y_test_inv = y_test
+
+    rmse = root_mean_squared_error(y_test_inv, y_pred_reg)
+    mae = mean_absolute_error(y_test_inv, y_pred_reg)
+    r2 = r2_score(y_test_inv, y_pred_reg)
 
     return {
         "regressor": regressor,
@@ -39,9 +48,21 @@ def train_los_regression_baseline(X_train, X_test, y_train, y_test, model_cfg):
         "r2": r2,
     }
 
+def log_los_stats_per_class(y_true, y_binned, name="Train"):
+    logging.info(f"LOS stats per class ({name}):")
+    df = pd.DataFrame({"los": y_true, "class": y_binned})
+    stats = df.groupby("class")["los"].describe()[["min", "25%", "50%", "75%", "max", "mean"]]
+    for cls, row in stats.iterrows():
+        logging.info(f"  Class {cls}: {row.to_dict()}")
+
 def train_los_multiclass_baseline(X_train, X_test, y_train, y_test, bins, model_cfg):
     y_train_cls = pd.cut(y_train, bins=bins, labels=False, right=False)
     y_test_cls = pd.cut(y_test, bins=bins, labels=False, right=False)
+    logging.info("LOS classification class distribution (multiclass):")
+    logging.info(f"Train: {pd.Series(y_train_cls).value_counts().sort_index().to_dict()}")
+    logging.info(f"Test: {pd.Series(y_test_cls).value_counts().sort_index().to_dict()}")
+    log_los_stats_per_class(y_train, y_train_cls, "Train")
+    log_los_stats_per_class(y_test, y_test_cls, "Test")
 
     clf_name = model_cfg["classifier"]["class"]  # e.g. "LGBMClassifier"
     clf_params = model_cfg["classifier"].get("params", {}).copy()
@@ -58,17 +79,26 @@ def train_los_multiclass_baseline(X_train, X_test, y_train, y_test, bins, model_
         clf_class, clf_params, X_train, y_train_cls, X_test, y_test_cls, categorical_features
     )
 
-    f1 = f1_score(y_test_cls, y_pred_cls, average='weighted')
-    precision = precision_score(y_test_cls, y_pred_cls, average='weighted')
-    recall = recall_score(y_test_cls, y_pred_cls, average='weighted')
+    f1_weighted = f1_score(y_test_cls, y_pred_cls, average='weighted')
+    precision_weighted = precision_score(y_test_cls, y_pred_cls, average='weighted')
+    recall_weighted = recall_score(y_test_cls, y_pred_cls, average='weighted')
+
+    # Add macro metrics
+    f1_macro = f1_score(y_test_cls, y_pred_cls, average='macro')
+    precision_macro = precision_score(y_test_cls, y_pred_cls, average='macro')
+    recall_macro = recall_score(y_test_cls, y_pred_cls, average='macro')
+
     balanced_acc = balanced_accuracy_score(y_test_cls, y_pred_cls)
     cm = confusion_matrix(y_test_cls, y_pred_cls)
 
     return {
         "classifier": classifier,
-        "f1_score": f1,
-        "precision": precision,
-        "recall": recall,
+        "f1_score": f1_weighted,
+        "precision": precision_weighted,
+        "recall": recall_weighted,
+        "f1_macro": f1_macro,
+        "precision_macro": precision_macro,
+        "recall_macro": recall_macro,
         "balanced_accuracy": balanced_acc,
         "confusion_matrix": cm,
         "num_classes": len(np.unique(y_train_cls))
@@ -97,24 +127,23 @@ def train_los_two_step_pipeline(
     Returns:
         dict: Contains classifier, regressors, and all relevant metrics.
     """
-
-    from config import (
-        RANDOM_SEED, CLASSIFIER_CLASSES, REGRESSOR_CLASSES
-    )
-    import utils
-
-    # Step 1: Classify using thresholds (binary or multiclass)
+    # Classify using thresholds (binary or multiclass)
     thresholds = sorted(thresholds)
     y_train_cls = np.digitize(y_train, thresholds)
     y_test_cls = np.digitize(y_test, thresholds)
+    logging.info("LOS classification class distribution (two-step):")
+    logging.info(f"Train: {pd.Series(y_train_cls).value_counts().sort_index().to_dict()}")
+    logging.info(f"Test: {pd.Series(y_test_cls).value_counts().sort_index().to_dict()}")
+    log_los_stats_per_class(y_train, y_train_cls, "Train")
+    log_los_stats_per_class(y_test, y_test_cls, "Test")
 
     categorical_features = X_train.select_dtypes(include=["category", "object"]).columns.tolist()
 
     # --- CLASSIFIER ---
     clf_name = model_cfg["classifier"]["class"]
     clf_params = model_cfg["classifier"]["params"].copy()
-    clf_params["random_state"] = RANDOM_SEED
-    clf_class = CLASSIFIER_CLASSES[clf_name]
+    clf_params["random_state"] = config.RANDOM_SEED
+    clf_class = config.CLASSIFIER_CLASSES[clf_name]
 
     if getattr(clf_class, "__name__", "") == "XGBClassifier":
         clf_params["scale_pos_weight"] = utils.compute_scale_pos_weight(y_train_cls)
@@ -124,6 +153,10 @@ def train_los_two_step_pipeline(
     )
 
     precision, recall, f1, _ = precision_recall_fscore_support(y_test_cls, y_pred_cls, average='weighted')
+    # add macro
+    f1_macro = f1_score(y_test_cls, y_pred_cls, average='macro')
+    precision_macro = precision_score(y_test_cls, y_pred_cls, average='macro')
+    recall_macro = recall_score(y_test_cls, y_pred_cls, average='macro')
     cm = confusion_matrix(y_test_cls, y_pred_cls)
     balanced_acc = balanced_accuracy_score(y_test_cls, y_pred_cls)
 
@@ -141,8 +174,8 @@ def train_los_two_step_pipeline(
     # --- REGRESSORS ---
     reg_name = model_cfg["regressor"]["class"]
     reg_params = model_cfg["regressor"]["params"].copy()
-    reg_params["random_state"] = RANDOM_SEED
-    reg_class = REGRESSOR_CLASSES[reg_name]
+    reg_params["random_state"] = config.RANDOM_SEED
+    reg_class = config.REGRESSOR_CLASSES[reg_name]
 
     regressors = {}
     y_preds = []
@@ -151,7 +184,6 @@ def train_los_two_step_pipeline(
         cls_mask_train = y_train_cls == cls
         cls_mask_test = y_pred_cls == cls
 
-        # Skip if no samples for this class in train or test
         if cls_mask_train.sum() == 0 or cls_mask_test.sum() == 0:
             warnings.warn(f"Class {cls}: No samples in train or predicted test set. Skipping regressor for this class.")
             continue
@@ -162,11 +194,19 @@ def train_los_two_step_pipeline(
             X_test[cls_mask_test], 
             categorical_features
         )
+        
+        # Inverse transform predictions and true values if log transform applied
+        if config.LOS_TRANSFORMATION.get("method", "none") == "log":
+            y_pred_reg = np.expm1(y_pred_reg)
+            y_true_cls = np.expm1(y_test[cls_mask_test])
+        else:
+            y_true_cls = y_test[cls_mask_test]
+
         regressors[int(cls)] = regressor
 
         pred_df = Bunch(
             cls=int(cls),
-            y_true=np.array(y_test[cls_mask_test]),
+            y_true=np.array(y_true_cls),
             y_pred=np.array(y_pred_reg)
         )
         y_preds.append(pred_df)
@@ -181,8 +221,11 @@ def train_los_two_step_pipeline(
         "f1_score": f1,
         "precision": precision,
         "recall": recall,
-        "confusion_matrix": cm,
+        "f1_macro": f1_macro,
+        "precision_macro": precision_macro,
+        "recall_macro": recall_macro,
         "balanced_accuracy": balanced_acc,
+        "confusion_matrix": cm,
         "roc_auc": roc_auc,
         "log_loss": logloss,
         "rmse": overall_metrics["rmse"],
@@ -191,9 +234,9 @@ def train_los_two_step_pipeline(
         "rmse_per_class": rmse_per_class,
         "mae_per_class": mae_per_class,
         "r2_per_class": r2_per_class,
-        "thresholds": thresholds
+        "thresholds": thresholds,
+        "num_classes": len(np.unique(y_train_cls))
 }
-
 
 # def train_los_two_step_pipeline( #OLD VERSION
 #     X_train, X_test, y_train, y_test, threshold, model_name, model_cfg

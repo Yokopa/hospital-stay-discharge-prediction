@@ -1,10 +1,14 @@
 from sklearn.metrics import (
     precision_recall_fscore_support,
+    f1_score,
+    precision_score,
+    recall_score,
     confusion_matrix,
     balanced_accuracy_score,
     roc_auc_score,
     log_loss
 )
+import numpy as np
 import sys
 import os
 # Add parent directory to sys.path to find config.py one level up
@@ -18,7 +22,6 @@ def train_discharge_pipeline(
     X_test, 
     y_train, 
     y_test, 
-    model_name, 
     model_cfg
 ):
     """
@@ -63,8 +66,14 @@ def train_discharge_pipeline(
         clf_class, clf_params, X_train, y_train, X_test, y_test, categorical_features, sample_weights
     )
 
-    # Compute metrics
+    # Compute weighted metrics
     precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
+    # Compute macro metrics
+    f1_macro = f1_score(y_test, y_pred, average='macro')
+    precision_macro = precision_score(y_test, y_pred, average='macro')
+    recall_macro = recall_score(y_test, y_pred, average='macro')
+
+    # Other metrics
     cm = confusion_matrix(y_test, y_pred)
     balanced_acc = balanced_accuracy_score(y_test, y_pred)
 
@@ -83,12 +92,16 @@ def train_discharge_pipeline(
     return {
         "classifier": classifier,
         "f1_score": f1,
+        "f1_macro": f1_macro,
         "precision": precision,
+        "precision_macro": precision_macro,
         "recall": recall,
+        "recall_macro": recall_macro,
         "confusion_matrix": cm,
         "balanced_accuracy": balanced_acc,
         "roc_auc": roc_auc,
-        "log_loss": logloss
+        "log_loss": logloss,
+        "num_classes": len(np.unique(y_train))
     }
 
 # def train_discharge_pipeline( # OLD VERSION, REMOVE IF THE NEW ONE WORKS
