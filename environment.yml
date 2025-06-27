@@ -1,0 +1,17 @@
+name: hospital-stay-discharge-prediction
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pandas
+  - scikit-learn
+  - numpy
+  - joblib
+  - xgboost
+  - catboost
+  - lightgbm
+  - pyyaml
+  - matplotlib  # if you use plots
+  - seaborn     # if you use plots
+  - jupyter     # if you use notebooks
+  - ipykernel   # if you use notebooks
