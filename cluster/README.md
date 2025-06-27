@@ -1,5 +1,5 @@
 This folder contains bash scripts to run the analysis on the cluster.
-The scripts are numbered to indicate the order in which they should be executed.
+The scripts are numbered to indicate the order in which they have been executed.
 
 > Note: The Python scripts for the analysis are located in the `src/` folder.
 
