@@ -30,7 +30,7 @@ The script supports the following **steps** controlled by the `--step` argument:
 | `--param_set`      | Parameter set name from the model config YAML (default: `default`)                             | Optional; default is `default`                     |
 | `--thresholds`     | LOS classification thresholds as a list of integers (e.g., `7 14 30`)                           | Default: `[7]`; required if LOS mode is `multiclass` or `two_step` |
 | `--cleaned_data_path` | Path to cleaned merged data file                                                               | Default: set in config (`config.CLEANED_MERGED_DATA_PATH`) |
-| `--save_dataset`   | Flag; if set, saves the preprocessed dataset to disk                                           | Optional                                           |
+| `--save_dataset`   | Flag; if set, saves the preprocessed dataset to disk. Automatically enabled if `--step=save_dataset_only`.                                           | Optional                                           |
 | `--force_reprocess`| Flag; if set, ignores cached/preprocessed data and forces reprocessing                         | Optional                                           |
 | `--save_model`     | Flag; if set, saves the trained model(s) to disk                                              | Optional                                           |
 
@@ -40,22 +40,22 @@ The script supports the following **steps** controlled by the `--step` argument:
 
 ### Run full pipeline to train LOS two-step model on `nan` dataset with LightGBM:
 
-```python
+```bash
 python main.py --step run_model --target los --mode two_step --dataset_name nan --model_name lightgbm --param_set default --thresholds 7 14 30 --save_model
 ```
 
 ### Clean data only (generate cleaned data file):
-```python
+```bash
 python main.py --step clean_only
 ```
 
 ### Prepare and save dataset splits without training:
-```python
+```bash
 python main.py --step save_dataset_only --target los --dataset_name nan --save_dataset
 ```
 
 ### Find best LOS thresholds for given dataset/model:
-```python
+```bash
 python main.py --step find_best_threshold --dataset_name nan --model_name lightgbm --param_set default
 ```
 
@@ -73,14 +73,14 @@ python main.py --step find_best_threshold --dataset_name nan --model_name lightg
 - **Model Training & Evaluation (`run_model` step):**  
   Trains a model for the specified target (`los` or `discharge_type`) using the configured model and parameters.  
   Supports LOS regression, LOS multiclass classification, and LOS two-step modeling modes.  
-  Saves model results and optionally trained models.
+  Saves model results and optionally trained models. Results are saved as CSVs, and confusion matrices are saved when available.
 
 ## Configuration Files
 
 - **Dataset configurations:** Defined in `datasets.yaml` (path set in `config.DATASET_CONFIG_PATH`).
 
 - **Model configurations:** Defined in `models.yaml` (path set in `config.MODEL_CONFIG_PATH`).  
-  Make sure your dataset and model names correspond to entries in these files.
+  Ensure your dataset and model names match the keys defined in the YAML files.
 
 ## Notes
 

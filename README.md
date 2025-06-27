@@ -33,3 +33,10 @@ gantt
 Supervisor: Prof. Alexander Benedikt Leichtle
 
 MSc Student: Anna Scarpellini Pancrazi
+
+
+
+
+## Running the main pipeline
+
+See [`src/README.md`](src/README.md) for detailed instructions on how to run `main.py`.
