@@ -1,11 +1,32 @@
 # -----------------------
-# lightGBM parameter sets
+# Logistic regression parameter sets
 # -----------------------
-
-lightgbm:
-# -----------------------
+logistic_regression:
   default:
+    classifier:
+      class: "LogisticRegression"
+      params:
+        solver: "saga" #  efficient for problems with large datasets and high-dimensional data
+        max_iter: 2000
+        penalty: "l2"
+        C: 1.0
+        class_weight: "balanced"
+        n_jobs: -1
+        
+# -----------------------
+# Linear regression parameter sets
+# -----------------------
+linear_regression:
+  default:
+    regressor:
+      class: "LinearRegression"
+      params: {}
 
+# -----------------------
+# LightGBM parameter sets
+# -----------------------
+lightgbm:
+  default:
     classifier:
       class: "LGBMClassifier"
       params: {}
@@ -13,25 +34,21 @@ lightgbm:
     regressor:
       class: "LGBMRegressor"
       params: {}
-# -----------------------
+
   default_balanced:
-
     classifier:
       class: "LGBMClassifier"
-      is_unbalanced: true
-
+      params:
+        use_sample_weight: true  # <-- internal flag, not passed to model
     regressor:
       class: "LGBMRegressor"
-# -----------------------
+      params: {}
 
-
 # -----------------------
-# Catboost parameter sets
+# CatBoost parameter sets
 # -----------------------
 catboost:
-# -----------------------
   default:
-
     classifier:
       class: "CatBoostClassifier"
       params: {}
@@ -39,18 +56,54 @@ catboost:
     regressor:
       class: "CatBoostRegressor"
       params: {}
-# -----------------------
-  default_balanced:
 
+  default_balanced:
     classifier:
       class: "CatBoostClassifier"
       params:
-        auto_class_weights: Balanced
-
+        use_sample_weight: true  # <-- internal flag
+        auto_class_weights: "Balanced"  # native CatBoost support
     regressor:
       class: "CatBoostRegressor"
       params: {}
+
 # -----------------------
+# XGBoost parameter sets
+# -----------------------
+xgboost:
+  default:
+    classifier:
+      class: "XGBClassifier"
+      params:
+        enable_categorical: true
+        tree_method: "hist"
+
+    regressor:
+      class: "XGBRegressor"
+      params:
+        enable_categorical: true
+        tree_method: "hist"
+
+  default_balanced:
+    classifier:
+      class: "XGBClassifier"
+      params:
+        enable_categorical: true
+        tree_method: "hist"
+        use_sample_weight: true  # <-- internal flag
+
+    regressor:
+      class: "XGBRegressor"
+      params:
+        enable_categorical: true
+        tree_method: "hist"
+# -----------------------
+
+
+
+
+
+
 
 
 
