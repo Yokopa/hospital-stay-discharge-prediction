@@ -1,19 +1,29 @@
+"""
+utils.py - Utility Functions for Data Handling, Preprocessing, and Modeling
+
+This module includes reusable functions for:
+- Loading/saving data and configs
+- Preprocessing (e.g., negative value handling, statistics)
+- Training models (classification, regression)
+- Logging and evaluation utilities
+"""
+
+# === Imports ===
 import pandas as pd
 import numpy as np
 from io import StringIO
 from collections import Counter
-from sklearn.utils.class_weight import compute_sample_weight
 import yaml
 import logging
 from joblib import dump
-from sklearn.metrics import (
-    mean_absolute_error, r2_score, root_mean_squared_error,
-)
+from sklearn.utils.class_weight import compute_sample_weight
+from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+import config
 
 log = logging.getLogger(__name__)
 
 # -----------------------------------#
-# Data loading and saving utilities
+# Data I/O Utilities
 # -----------------------------------#
 
 def load_csv(path):
@@ -52,7 +62,7 @@ def load_yaml(path):
         return yaml.safe_load(f)
     
 # -----------------------------------#
-# Preprocessing utilities
+# Preprocessing Utilities
 # -----------------------------------#
 
 def remove_duplicates(df):
@@ -154,8 +164,6 @@ def generate_summary_statistics(
     summary_stats = summary_stats.sort_values(by='missing_percentage', ascending=True)
 
     if verbose:
-        import logging
-        log = logging.getLogger(__name__)
         log.info(f"Summary statistics shape: {summary_stats.shape}")
         log.info("Top columns by missingness:\n" + str(summary_stats.sort_values('missing_percentage', ascending=False).head(5)))
 
@@ -166,9 +174,9 @@ def generate_summary_statistics(
     return summary_stats
 
 # -----------------------------------#
-# Modeling utilities
+# Modeling Utilities
 # -----------------------------------#
-# Imbalance
+
 def compute_scale_pos_weight(y):
     """Compute scale_pos_weight = (neg / pos) for XGBoost."""
     counter = Counter(y)
@@ -178,19 +186,6 @@ def compute_scale_pos_weight(y):
 
 def compute_sample_weights(y):
     return compute_sample_weight(class_weight="balanced", y=y)
-
-# def save_results(result, args, target):
-#     os.makedirs(args.save_path, exist_ok=True)
-#     file_name = f"{target}_{args.dataset_key}_{args.model_name}_{args.step}.csv"
-#     full_path = os.path.join(args.save_path, file_name)
-
-#     if isinstance(result, dict):
-#         df = pd.DataFrame([result])
-#     else:
-#         df = pd.DataFrame(result)
-
-#     df.to_csv(full_path, index=False)
-#     logging.info(f"Saved results to {full_path}")
 
 def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, cat_cols, sample_weight_train=None):
     """
@@ -215,25 +210,44 @@ def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, ca
         y_pred : predicted classes
         y_pred_proba : predicted probabilities (if available, else None)
     """
-    if clf_class.__name__ == "CatBoostClassifier":
+    clf_name = clf_class.__name__
+    log.info(f"Training classifier: {clf_name}...")
+
+    if clf_name == "CatBoostClassifier":
         from catboost import Pool
         cat_indices = [X_train.columns.get_loc(col) for col in cat_cols]
         train_pool = Pool(X_train, y_train, cat_features=cat_indices, weight=sample_weight_train)
         test_pool = Pool(X_test, y_test, cat_features=cat_indices)
         clf = clf_class(**clf_params)
         clf.fit(train_pool, eval_set=test_pool, verbose=0)
+        log.info("CatBoost training completed.")
         y_pred = clf.predict(test_pool)
         y_pred_proba = clf.predict_proba(test_pool)
         return clf, y_pred, y_pred_proba
 
-    elif clf_class.__name__ == "LGBMClassifier":
+    elif clf_name == "LGBMClassifier":
         clf = clf_class(**clf_params)
         fit_kwargs = {"categorical_feature": cat_cols}
         if sample_weight_train is not None:
             fit_kwargs["sample_weight"] = sample_weight_train
         clf.fit(X_train, y_train, **fit_kwargs)
+        log.info("LightGBM training completed.")
         y_pred = clf.predict(X_test)
         y_pred_proba = clf.predict_proba(X_test)
+        return clf, y_pred, y_pred_proba
+
+    elif clf_name == "XGBClassifier":
+        clf = clf_class(**clf_params)
+        fit_kwargs = {}
+        if sample_weight_train is not None and "scale_pos_weight" not in clf_params:
+            fit_kwargs["sample_weight"] = sample_weight_train
+        clf.fit(X_train, y_train, **fit_kwargs)
+        log.info("XGBoost training completed.")
+        y_pred = clf.predict(X_test)
+        try:
+            y_pred_proba = clf.predict_proba(X_test)
+        except AttributeError:
+            y_pred_proba = None
         return clf, y_pred, y_pred_proba
 
     else:
@@ -242,64 +256,13 @@ def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, ca
         if sample_weight_train is not None:
             fit_kwargs["sample_weight"] = sample_weight_train
         clf.fit(X_train, y_train, **fit_kwargs)
+        log.info(f"{clf_name} training completed.")
         y_pred = clf.predict(X_test)
         try:
             y_pred_proba = clf.predict_proba(X_test)
         except AttributeError:
             y_pred_proba = None
         return clf, y_pred, y_pred_proba
-    
-# def train_classifier(clf_class, clf_params, X_train, y_train, X_test, y_test, cat_cols): # OLD VERSION: REMOVE IF ThE NEW ONE WORKS
-#     """
-#     Train a classifier (CatBoost, LightGBM, or sklearn-compatible) and return predictions.
-
-#     Args:
-#         clf_class : class
-#             The classifier class (e.g., LGBMClassifier, CatBoostClassifier).
-#         clf_params : dict
-#             Parameters for the classifier.
-#         X_train, X_test : pd.DataFrame
-#             Feature sets.
-#         y_train, y_test : pd.Series
-#             Targets.
-#         cat_cols : list
-#             Names of categorical columns.
-
-#     Returns:
-#         classifier : fitted classifier
-#         y_pred : predicted classes
-#         y_pred_proba : predicted probabilities (if available, else None)
-#     """
-#     if clf_class.__name__ == "CatBoostClassifier":
-#         from catboost import Pool
-#         cat_indices = [X_train.columns.get_loc(col) for col in cat_cols]
-#         train_pool = Pool(X_train, y_train, cat_features=cat_indices)
-#         test_pool = Pool(X_test, y_test, cat_features=cat_indices)
-#         clf = clf_class(**clf_params)
-#         clf.fit(train_pool, eval_set=test_pool, verbose=0)
-#         y_pred = clf.predict(test_pool)
-#         y_pred_proba = clf.predict_proba(test_pool)
-#         return clf, y_pred, y_pred_proba
-
-#     elif clf_class.__name__ == "LGBMClassifier":
-#         clf = clf_class(**clf_params)
-#         clf.fit(X_train, y_train, categorical_feature=cat_cols)
-#         y_pred = clf.predict(X_test)
-#         y_pred_proba = clf.predict_proba(X_test)
-#         return clf, y_pred, y_pred_proba
-
-#     else:
-#         # fallback: any sklearn-like classifier
-#         clf = clf_class(**clf_params)
-#         clf.fit(X_train, y_train)
-#         y_pred = clf.predict(X_test)
-
-#         try:
-#             y_pred_proba = clf.predict_proba(X_test)
-#         except AttributeError:
-#             y_pred_proba = None
-
-#         return clf, y_pred, y_pred_proba
     
 def train_regressor(reg_class, reg_params, X_train, y_train, X_test, categorical_features):
     """
@@ -321,6 +284,8 @@ def train_regressor(reg_class, reg_params, X_train, y_train, X_test, categorical
         regressor : fitted model
         y_pred : predictions on X_test
     """
+    log.info(f"Training regressor: {reg_class.__name__}")
+
     if reg_class.__name__ == "CatBoostRegressor":
         from catboost import Pool
         cat_indices = [X_train.columns.get_loc(col) for col in categorical_features]
@@ -341,130 +306,31 @@ def train_regressor(reg_class, reg_params, X_train, y_train, X_test, categorical
         regressor.fit(X_train, y_train)
         y_pred = regressor.predict(X_test)
 
+    log.info(f"{reg_class.__name__} training completed.")
     return regressor, y_pred
-
-# IS THIS USEFUL?
-# def display_comparison_table(
-#     results_df,
-#     index_col="Model",
-#     dataset_params=None,
-#     model_params=None,
-#     save=False,
-#     save_dir="comparison_outputs",
-#     to_markdown=False  # New flag
-# ):
-#     """
-#     Display and optionally save comparison metrics tables, highlighting best results per dataset.
-
-#     Parameters
-#     ----------
-#     results_df : pd.DataFrame
-#         Must contain 'Dataset', index_col, and metric columns.
-
-#     index_col : str, default='Model'
-#         Column to use as the index (e.g., "Model" or "Threshold").
-
-#     dataset_params : dict or None
-#         Optional dictionary with dataset parameter info for saving.
-
-#     model_params : dict or None
-#         Optional dictionary with model parameter info for saving.
-
-#     save : bool, default=False
-#         If True, saves pivot tables and params to CSV files in save_dir.
-
-#     save_dir : str, default="comparison_outputs"
-#         Directory where CSV files will be saved.
-
-#     to_markdown : bool, default=False
-#         If True, prints tables in Markdown format for Jupyter or README use.
-#     """
-
-#     # Create dir if saving
-#     if save and not os.path.exists(save_dir):
-#         os.makedirs(save_dir)
-
-#     lower_better = {"Log Loss", "RMSE (Overall)", "MAE (Overall)"}
-
-#     metrics = [
-#         "F1 Score", "Precision", "Recall", "Balanced Accuracy", "ROC AUC",
-#         "Log Loss", "RMSE (Overall)", "MAE (Overall)", "R2 Score"
-#     ]
-
-#     saved_files = []
-
-#     for metric in metrics:
-#         print(f"\n--- {metric} ---")
-#         if metric not in results_df.columns:
-#             print(f"{metric} not available in this results_df.")
-#             continue
-
-#         pivot = results_df.pivot(index=index_col, columns="Dataset", values=metric)
-
-#         def highlight_best(s):
-#             if metric in lower_better:
-#                 is_best = s == s.min()
-#             else:
-#                 is_best = s == s.max()
-#             return ['**{:.3f}**'.format(v) if best else '{:.3f}'.format(v) for v, best in zip(s, is_best)]
-
-#         # Apply highlighting
-#         highlighted = pivot.apply(highlight_best)
-
-#         if to_markdown:
-#             # Print as markdown table
-#             markdown_df = highlighted.copy()
-#             markdown_df.index.name = index_col
-#             print(markdown_df.to_markdown())
-#         else:
-#             # Print row by row (text style)
-#             for idx, row in highlighted.iterrows():
-#                 print(f"{idx}: " + " | ".join(row))
-
-#         if save:
-#             filename = f"{save_dir}/comparison_{index_col}_{metric.replace(' ', '_').replace('(', '').replace(')', '')}.csv"
-#             pivot.round(5).to_csv(filename)
-#             saved_files.append(filename)
-
-#     if save:
-#         if dataset_params:
-#             ds_params_file = f"{save_dir}/dataset_params.csv"
-#             pd.DataFrame.from_dict(dataset_params, orient='index').to_csv(ds_params_file)
-#             saved_files.append(ds_params_file)
-
-#         if model_params:
-#             model_params_file = f"{save_dir}/model_params.csv"
-#             pd.DataFrame.from_dict(model_params, orient='index').to_csv(model_params_file)
-#             saved_files.append(model_params_file)
-
-#         print("\nSaved files:")
-#         for f in saved_files:
-#             print(f" - {f}")
-
-#     return saved_files if save else None
 
 def save_results(result, results_dir, model_prefix, now):
     results_dir.mkdir(parents=True, exist_ok=True)
     df = pd.DataFrame([result]) if isinstance(result, dict) else pd.DataFrame(result)
     out_path = results_dir / f"{model_prefix}_results_{now}.csv"
     df.to_csv(out_path, index=False)
-    logging.info(f"Saved results to {out_path}")
+    log.info(f"Saved results to {out_path}")
 
     if "confusion_matrix" in result:
         cm_path = results_dir / f"{model_prefix}_confusion_matrix.csv"
         pd.DataFrame(result["confusion_matrix"]).to_csv(cm_path, index=False)
-        logging.info(f"Saved confusion matrix to {cm_path}")
+        log.info(f"Saved confusion matrix to {cm_path}")
 
 def save_models(result, models_dir, model_prefix):
     models_dir.mkdir(parents=True, exist_ok=True)
     if "classifier" in result:
         clf_path = models_dir / f"{model_prefix}_classifier.joblib"
         dump(result["classifier"], clf_path)
-        logging.info(f"Saved classifier to {clf_path}")
+        log.info(f"Saved classifier to {clf_path}")
     if "regressor" in result:
         reg_path = models_dir / f"{model_prefix}_regressor.joblib"
         dump(result["regressor"], reg_path)
-        logging.info(f"Saved regressor to {reg_path}")
+        log.info(f"Saved regressor to {reg_path}")
 
 def compute_per_class_metrics(y_preds):
     rmse_per_class = {}
@@ -508,4 +374,38 @@ def log_df_info(df, name="DataFrame"):
     buffer = StringIO()
     df.info(buf=buffer)
     info_str = buffer.getvalue()
-    logging.info(f"{name} info:\n{info_str}")
+    log.info(f"{name} info:\n{info_str}")
+
+def prepare_classifier_and_weights(model_cfg, y_train, y_train_cls=None):
+    """
+    Extract classifier class, params, and compute sample weights if needed.
+    Handles special case for XGBClassifier.
+
+    Returns:
+        clf_class: the model class (e.g., XGBClassifier)
+        clf_params: dict of cleaned params
+        sample_weights: np.array or None
+    """
+    clf_name = model_cfg["classifier"]["class"]
+    clf_params = model_cfg["classifier"].get("params", {}).copy()
+    clf_params["random_state"] = config.RANDOM_SEED
+    clf_class = config.CLASSIFIER_CLASSES[clf_name]
+
+    use_sample_weight = model_cfg["classifier"].get("use_sample_weight", False)
+    sample_weights = None
+
+    y_target = y_train_cls if y_train_cls is not None else y_train
+    num_classes = len(np.unique(y_target))
+
+    if clf_name == "XGBClassifier" and use_sample_weight:
+        if num_classes == 2:
+            log.info("Applying XGBoost class balancing with scale_pos_weight.")
+            clf_params["scale_pos_weight"] = compute_scale_pos_weight(y_target)
+        else:
+            log.info("Applying XGBoost sample weighting for multi-class classification.")
+            sample_weights = compute_sample_weights(y_target)
+    elif use_sample_weight:
+        log.info(f"Applying sample weighting for classifier: {clf_name}")
+        sample_weights = compute_sample_weights(y_target)
+
+    return clf_class, clf_params, sample_weights
