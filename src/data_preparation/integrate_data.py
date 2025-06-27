@@ -4,7 +4,6 @@ Module for integrating cleaned lab and clinical data.
 
 import pandas as pd
 import numpy as np
-import logging
 import sys
 import os
 # Add parent directory to sys.path to find config.py one level up
@@ -12,6 +11,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import config
 import utils
 
+import logging
 log = logging.getLogger(__name__)
 
 def integrate_data(

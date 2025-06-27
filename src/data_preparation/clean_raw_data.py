@@ -1,8 +1,6 @@
 """
 Module for cleaning and preprocessing laboratory and clinical data.
 """
-
-import logging
 import pandas as pd
 import sys
 import os
@@ -11,6 +9,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import config
 import utils
 
+import logging
 log = logging.getLogger(__name__)
 
 def clean_lab_data(df: pd.DataFrame, save=True, verbose=False) -> pd.DataFrame:

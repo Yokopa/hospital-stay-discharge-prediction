@@ -124,5 +124,3 @@ def compute_apri(df: pd.DataFrame, asat_col: str = 'ASAT', platelet_col: str = '
     df['liver_fibrosis_risk'] = np.select(conditions, choices, default='unknown')
 
     return df
-
-

@@ -1,21 +1,23 @@
 """
-Data preprocessing utilities for hospital stay/discharge prediction.
+Feature preprocessing utilities for hospital stay/discharge prediction.
 
-Includes:
-- Binning (age)
-- ICD code grouping/categorization
-- Missing value flagging
-- Categorical encoding (ordinal, one-hot)
-- Feature scaling
-- Imputation (Random Forest)
-- Patient-level train/test splitting (no leakage)
-- Target preprocessing/encoding
-- Dataset preparation pipeline
+This module provides functions for:
+- Adding missing value indicators to numerical columns
+- Binning and categorizing age
+- Grouping and categorizing ICD-10 diagnosis codes
+- Encoding categorical variables (ordinal and one-hot)
+- Scaling features
+- Imputing missing values using Random Forests
+- Patient-level train/test splitting to prevent data leakage
+- Target preprocessing for classification and regression (LOS) tasks
+- Dataset preparation pipeline according to configuration
+- Dataset inspection utilities
+
+Intended for use in the data preparation pipeline prior to model training.
 """
 
 import pandas as pd
 import numpy as np
-from src import config
 # Enables experimental IterativeImputer (must come before import)
 from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.impute import IterativeImputer
@@ -28,11 +30,12 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import LabelEncoder
 import sys
 import os
-import logging
 # Add parent directory to sys.path to find config.py one level up
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import config
+import utils
 
+import logging
 log = logging.getLogger(__name__)
 
 # -------------------------
@@ -268,41 +271,52 @@ def scale_features(X_train, X_test, return_scaler=False):
 # -------------------------
 # Imputation with Random Forest
 # -------------------------
-def impute_with_random_forest(train_df, test_df, random_state=config.RANDOM_SEED):
+def impute_with_random_forest(train_df, test_df, impute_cfg=None, random_state=config.RANDOM_SEED):
     """
     Impute missing numerical values in train and test DataFrames using
-    IterativeImputer with RandomForestRegressor.
-    
+    IterativeImputer with RandomForestRegressor, using parameters from config or dataset YAML.
+
     Parameters:
         train_df (pd.DataFrame): Training set (numerical features only)
         test_df (pd.DataFrame): Test set (same columns as train_df)
+        impute_cfg (dict or None): Dict with keys like 'n_estimators' and 'max_iter'
         random_state (int): Random seed for reproducibility
-    
+
     Returns:
-        imputed_train_df, imputed_test_df (pd.DataFrame, pd.DataFrame)
+        imputed_train_df (pd.DataFrame), imputed_test_df (pd.DataFrame)
     """
-    # Check for matching columns
+    # Validate columns
     assert list(train_df.columns) == list(test_df.columns), "Train and test must have the same columns"
 
-    # Convert to numpy arrays
+    # Defaults if no config passed
+    impute_cfg = impute_cfg or {}
+    n_estimators = impute_cfg.get("n_estimators", 5)
+    max_iter = impute_cfg.get("max_iter", 3)
+
+    log.info(f"Imputing with RandomForest: n_estimators={n_estimators}, max_iter={max_iter}")
+
+    # Convert to NumPy for sklearn compatibility
     train_array = train_df.to_numpy()
     test_array = test_df.to_numpy()
 
-    # Initialize IterativeImputer with RandomForest
+    # Initialize the imputer
     imputer = IterativeImputer(
-        estimator=RandomForestRegressor(n_estimators=100, random_state=random_state),
-        max_iter=20,
+        estimator=RandomForestRegressor(n_estimators=n_estimators, random_state=random_state),
+        max_iter=max_iter,
         random_state=random_state
     )
 
-    # Fit on training data and transform both
+    # Fit and transform
+    log.info("Fitting imputer on training data...")
     imputed_train = imputer.fit_transform(train_array)
+    log.info("Transforming test data...")
     imputed_test = imputer.transform(test_array)
 
-    # Convert back to DataFrames
+    # Convert back to DataFrame
     imputed_train_df = pd.DataFrame(imputed_train, columns=train_df.columns, index=train_df.index)
     imputed_test_df = pd.DataFrame(imputed_test, columns=test_df.columns, index=test_df.index)
 
+    log.info("Imputation completed successfully.")
     return imputed_train_df, imputed_test_df
 
 def clip_imputed_values(original_df, imputed_df):
@@ -422,50 +436,6 @@ def map_discharge_type(val, target_classes=config.DISCHARGE_CATEGORIES_NUMBER):
             return "Another hospital/institution"
     return val
 
-# def discharge_type_preprocess(
-#     df: pd.DataFrame,
-#     target_col: str = "discharge_type",
-#     mode: str = "4_categories",
-#     allowed_categories: List[str] = None
-# ) -> pd.DataFrame:
-#     """
-#     Preprocess and optionally filter the discharge_type target variable.
-
-#     Args:
-#         df (pd.DataFrame): Input DataFrame.
-#         target_col (str): Name of the discharge type column.
-#         mode (str): '4_categories' (default) or '3_categories'.
-#                     - '3_categories' merges 'Discharge to another hospital' and 
-#                       'Discharge to another institution' into a single category.
-#         allowed_categories (List[str], optional): List of categories to retain after processing.
-#                                                   If None, no filtering is applied.
-
-#     Returns:
-#         pd.DataFrame: DataFrame with processed and optionally filtered discharge_type.
-#     """
-#     df = df.copy()
-
-#     if mode == "4_categories":
-#         # No change to original values
-#         df[target_col] = df[target_col].fillna("Unknown")
-
-#     elif mode == "3_categories":
-#         mapping = {
-#             "Home": "Home",
-#             "Another hospital": "Another hospital/institution",
-#             "Institution": "Another hospital/institution",
-#             "Deceased": "Deceased"
-#         }
-#         df[target_col] = df[target_col].map(mapping).fillna("Unknown")
-
-#     else:
-#         raise ValueError("Unsupported mode. Choose either '4_categories' or '3_categories'.")
-
-#     if allowed_categories is not None:
-#         df = df[df[target_col].isin(allowed_categories)]
-
-#     return df
-
 def encode_target(y_train, y_test):
     """
     Encodes target labels using LabelEncoder.
@@ -510,6 +480,66 @@ def decode_target(y_pred, encoder):
 # y_pred_labels = decode_target(y_pred, label_enc)
 
 # -------------------------
+# Target preprocessing utilities for los
+# -------------------------
+def transform_los_target(y_train, y_test, los_transform_config):
+    log.info("Starting LOS target transformation...")
+    method = los_transform_config.get("method", "none")
+    log.info(f"Transformation method: {method}")
+
+    if method == "none":
+        log.info("No LOS target transformation applied.")
+        return y_train, y_test
+    
+    elif method == "cap":
+        cap_val = los_transform_config.get("cap_value", None)
+
+        if cap_val is None:
+            cap_val = y_train.quantile(0.99)
+            log.info(f"No cap_value specified in config. Using default 99th percentile: {cap_val:.4f}")
+
+        elif isinstance(cap_val, str) and cap_val.endswith('%'):
+            try:
+                percentile = float(cap_val.strip('%')) / 100
+                cap_val = y_train.quantile(percentile)
+                log.info(f"Cap value set to {cap_val:.4f} from percentile {percentile*100:.1f}%")
+            except ValueError:
+                raise ValueError(f"Invalid percentile format in cap_value: {cap_val}")
+
+        elif isinstance(cap_val, (int, float)):
+            log.info(f"Cap value set to fixed value: {cap_val}")
+
+        else:
+            raise ValueError(f"Invalid cap_value type: {cap_val} (must be float, int, or 'NN%')")
+
+        y_train_capped = y_train.clip(upper=cap_val)
+        y_test_capped = y_test.clip(upper=cap_val)
+        log.info("LOS target capped successfully.")
+        return y_train_capped, y_test_capped
+
+    elif method == "winsorize":
+        limits = los_transform_config.get("winsor_limits", (0, 0.01))
+        lower_lim = y_train.quantile(limits[0])
+        upper_lim = y_train.quantile(1 - limits[1])
+        log.info(f"Winsorizing with limits: lower={lower_lim}, upper={upper_lim}")
+
+        y_train_wins = y_train.clip(lower=lower_lim, upper=upper_lim)
+        y_test_wins = y_test.clip(lower=lower_lim, upper=upper_lim)
+        log.info("LOS target winsorized successfully.")
+        return y_train_wins, y_test_wins
+
+    elif method == "log":
+        log.info("Applying log1p transformation to LOS target.")
+        y_train_log = np.log1p(y_train)
+        y_test_log = np.log1p(y_test)
+        log.info("Log transformation completed.")
+        return y_train_log, y_test_log
+
+    else:
+        raise ValueError(f"Unknown LOS transformation method: {method}")
+
+
+# -------------------------
 # Prepare dataset according to configuration
 # -------------------------
 def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SIZE, random_state=config.RANDOM_SEED):
@@ -519,45 +549,64 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     Returns:
         X_train, X_test, y_train, y_test, transformers_dict
     """
+    log.info("Starting dataset preparation...")
     df = raw_df.copy()
 
-    # Add engineered features
-    for feat in dataset_config["engineered_features"]:
+    # ---------------- Engineered features ----------------
+    for feat in dataset_config.get("engineered_features", []):
+        log.info(f"Applying engineered feature: {feat}")
         if feat == "anemia":
+            log.info("Applying engineered feature: anemia")
             df = classify_anemia_dataset(df)
+            log.info("Anemia classification added.")
+
         elif feat == "kidney":
+            log.info("Applying engineered feature: kidney")
             df = classify_kidney_function(df)
+            log.info("Kidney function classification added.")
+
         elif feat == "liver":
+            log.info("Applying engineered feature: liver")
             df = compute_apri(df)
+            log.info("Liver APRI score added.")
 
-    # Apply deterministic transformations
-    if dataset_config["add_missing_flags"]:
+    log.info("Engineered features applied.")
+
+    # ---------------- Deterministic transformations ----------------
+    if dataset_config.get("add_missing_flags", False):
         df = add_missing_indicators(df)
+        log.info("Missing value indicators added.")
 
-    if dataset_config["apply_age_binning"]:
+    if dataset_config.get("apply_age_binning", False):
         df["age"] = categorize_age(df["age"])
+        log.info("Age binning applied.")
 
-    if dataset_config["icd_strategy"] == "blocks":
+    icd_strategy = dataset_config.get("icd_strategy", None)
+    if icd_strategy == "blocks":
         df = group_icd_to_blocks(df)
-    elif dataset_config["icd_strategy"] == "categories":
+        log.info("ICD codes grouped to blocks.")
+    elif icd_strategy == "categories":
         df["diagnosis"] = df["diagnosis"].apply(categorize_icd)
+        log.info("ICD codes categorized.")
 
-    # Convert object columns to category
+    # ---------------- Convert object columns to category ----------------
     obj_cols = df.select_dtypes(include="object").columns
     df[obj_cols] = df[obj_cols].astype("category")
+    log.info(f"Converted object columns to category: {list(obj_cols)}")
 
-    # Map & filter discharge_type target if applicable
+    # ---------------- Map & filter discharge_type target (if applicable) ----------------
     if target_col == "discharge_type":
         discharge_classes = config.DISCHARGE_CATEGORIES_NUMBER
+        log.info(f"Mapping discharge_type target with {discharge_classes} classes.")
         # Apply mapping function
-        df[target_col] = df[target_col].apply(lambda val: config.map_discharge_type(val, discharge_classes))
+        df[target_col] = df[target_col].apply(lambda val: map_discharge_type(val, discharge_classes))
 
         # Filter to allowed classes
         allowed_classes = config.DISCHARGE_TARGET_CATEGORIES[discharge_classes]
         df = df[df[target_col].isin(allowed_classes)].copy()
-        print(f"Classes after mapping: {sorted(df[target_col].unique())}")
+        log.info(f"Filtered to allowed discharge classes: {sorted(df[target_col].unique())}")
         
-    # Split by patient_id to avoid leakage
+    # ---------------- Split by patient to avoid leakage ----------------
     X_train, X_test, y_train, y_test = train_test_split_by_patient(
         df, 
         target_col,
@@ -565,11 +614,36 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         random_state=random_state,
         stratify=True
     )
+    log.info(f"Split done. Train shape: {X_train.shape}, Test shape: {X_test.shape}")
+
+    # Check unseen categories in test vs train
+    cat_cols = X_train.select_dtypes(include="category").columns
+    for col in cat_cols:
+        train_vals = set(X_train[col].dropna().unique())
+        test_vals = set(X_test[col].dropna().unique())
+
+        unseen_in_test = test_vals - train_vals
+        unseen_in_train = train_vals - test_vals
+
+        if unseen_in_test:
+            log.warning(f"[{col}] Categories in test but not in train: {sorted(unseen_in_test)}")
+        if unseen_in_train:
+            log.info(f"[{col}] Categories in train but not in test: {sorted(unseen_in_train)}")
+
+    log.info("Finished checking category mismatches.")
+
+    # ---------------- Apply LOS target transformation (if applicable) ----------------
+    # AFTER train/test split to ensure no data leakage by fitting transformation only on train set
+    if target_col == config.LOS_TARGET:
+        log.info("Transforming LOS target as per config...")
+        y_train, y_test = transform_los_target(y_train, y_test, config.LOS_TRANSFORMATION)
+        log.info("LOS target transformation completed.")
 
     transformers = {}
 
-    # Encoding (fit on train only, transform both)
-    if dataset_config["encode"]:
+    # ---------------- Encoding categorical variables ----------------
+    if dataset_config.get("encode", False):
+        log.info("Starting encoding of categorical variables...")
         ordinal_cols = dataset_config.get("ordinal_cols", [])
         ordinal_categories = dataset_config.get("ordinal_categories", {})
         
@@ -581,61 +655,67 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         X_train = transform_with_encoders(X_train, encoders)
         X_test = transform_with_encoders(X_test, encoders)
         transformers['encoders'] = encoders
+        log.info("Encoding completed.")
 
-    # Imputation on numeric columns (fit on train, apply on test)
-    if dataset_config["impute"]:
+    # ---------------- Imputation of numeric columns ----------------
+    if dataset_config.get("impute", False):
+        log.info("Starting imputation of numeric columns...")
         numeric_cols = X_train.select_dtypes(include=[np.number]).columns
+        impute_cfg = dataset_config.get("imputation_params", {})
+        
         X_train_num_imp, X_test_num_imp = impute_with_random_forest(
-            X_train[numeric_cols], X_test[numeric_cols]
+            X_train[numeric_cols],
+            X_test[numeric_cols],
+            impute_cfg=impute_cfg
         )
-        X_train_num_imp = clip_imputed_values(X_train[numeric_cols], X_train_num_imp)
-        X_test_num_imp = clip_imputed_values(X_test[numeric_cols], X_test_num_imp)
+        
+        # Clip / postprocess
+        X_train.loc[:, numeric_cols] = clip_imputed_values(X_train[numeric_cols], X_train_num_imp)
+        X_test.loc[:, numeric_cols] = clip_imputed_values(X_test[numeric_cols], X_test_num_imp)
 
-        X_train.loc[:, numeric_cols] = X_train_num_imp
-        X_test.loc[:, numeric_cols] = X_test_num_imp
-        transformers['imputer'] = "RandomForestImputer"  # or store fitted imputer model if desired
-
-    # Scaling (fit scaler on train, apply on test)
-    if dataset_config["scale"]:
+        transformers["imputer"] = f"RandomForestImputer(n_estimators={impute_cfg.get('n_estimators', 10)}, max_iter={impute_cfg.get('max_iter', 5)})"
+        log.info("Imputation completed and applied to dataset.")
+        
+    # ---------------- Scaling features ----------------
+    if dataset_config.get("scale", False):
+        log.info("Starting scaling of features...")
         X_train, X_test, scaler = scale_features(X_train, X_test, return_scaler=True)
         transformers['scaler'] = scaler
+        log.info("Scaling completed.")
+
+    log.info("Dataset preparation finished successfully.")
+
+    # ---------------- Final Sanity Checks & log ----------------
+    log.info("-" * 60)
+    log.info("Final Sanity Checks & Data Summary")
+
+    # --- y_train / y_test summary
+    log.info("y_train distribution:\n%s", y_train.describe())
+    log.info("y_test distribution:\n%s", y_test.describe())
+
+    # --- Class balance (only if classification)
+    if y_train.dtype.name == 'category' or y_train.dtype == object or y_train.nunique() <= 20:
+        log.info("y_train value counts:\n%s", y_train.value_counts())
+        log.info("y_test value counts:\n%s", y_test.value_counts())
+
+    # --- Feature matrix info
+    log.info(f"X_train shape: {X_train.shape} | X_test shape: {X_test.shape}")
+    log.info(f"X_train missing values: {X_train.isnull().sum().sum()}")
+    log.info(f"X_test missing values: {X_test.isnull().sum().sum()}")
+
+    utils.log_df_info(X_train, "X_train")
+    utils.log_df_info(X_test, "X_test")
+
+    
+    # --- Optional: warn if any constant columns (useless for ML)
+    constant_cols = [col for col in X_train.columns if X_train[col].nunique() <= 1]
+    if constant_cols:
+        log.warning(f"Columns with only 1 unique value in X_train: {constant_cols}")
+    
+    log.info("All sanity checks completed.")
+    log.info("-" * 60)
 
     return X_train, X_test, y_train, y_test, transformers
-
-# # -------------------------
-# # Generate multiple datasets from configurations
-# # -------------------------
-# def generate_all_datasets(raw_df, target_col, dataset_configs):
-#     """
-#     Generates datasets for each DatasetConfig.
-#     Returns dict: {config.name: (X_train, X_test, y_train, y_test, transformers)}
-#     """
-#     all_data = {}
-#     for config in dataset_configs:
-#         log.info(f"Preparing dataset: {config.name}")
-#         X_train, X_test, y_train, y_test, transformers = prepare_dataset(raw_df, target_col, config)
-#         all_data[config.name] = {
-#             "X_train": X_train,
-#             "X_test": X_test,
-#             "y_train": y_train,
-#             "y_test": y_test,
-#             "transformers": transformers,
-#             "config": config,
-#         }
-#     return all_data
-
-# Example usage:
-
-# datasets_lgbm = generate_all_datasets(raw_df, DATASET_CONFIGS_NAN_CAT_NATIVE)
-# datasets_xgb = generate_all_datasets(raw_df, DATASET_CONFIGS_NAN_CAT_ENCODED)
-# datasets_classical = generate_all_datasets(raw_df, DATASET_CONFIGS_NO_NAN_ENCODED)
-
-# Or all combined:
-# all_datasets = generate_all_datasets(raw_df, ALL_DATASET_CONFIGS)
-
-# Access dataset:
-# X_train = all_datasets['imputed_encoded_scaled']['X_train']
-# y_train = all_datasets['imputed_encoded_scaled']['y_train']
 
 # -------------------------
 # Print dataset information
@@ -716,28 +796,3 @@ def inspect_dataset(config_name, data):
                 print(f"  - {name}: {type(transformer).__name__}")
 
     print("-" * 60)
-
-
-
-    #     discharge_classes = dataset_config.get("discharge_classes", 4)  # default 4 classes
-
-    #     if discharge_classes == 3:
-    #         allowed_classes = ["Home", "Another hospital/institution", "Deceased"]
-
-    #         def map_discharge(val):
-    #             if val in ["Another hospital", "Institution"]:
-    #                 return "Another hospital/institution"
-    #             else:
-    #                 return val
-
-    #         df[target_col] = df[target_col].map(map_discharge)
-
-    #     elif discharge_classes == 4:
-    #         allowed_classes = ["Home", "Another hospital", "Institution", "Deceased"]
-
-    #     else:
-    #         raise ValueError(f"Unsupported discharge_classes: {discharge_classes}")
-        
-    #     # Filter rows to keep only allowed classes
-    #     df = df[df[target_col].isin(allowed_classes)].copy()
-    #     print(sorted(df[target_col].unique()))
