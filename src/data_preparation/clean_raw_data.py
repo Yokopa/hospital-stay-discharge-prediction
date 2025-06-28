@@ -153,6 +153,16 @@ def clean_clinical_data(df: pd.DataFrame, save=True, verbose=False) -> pd.DataFr
     log.debug("Dropped %d rows with missing discharge_type", before_drop - df.shape[0])
 
     # ------------------------------------------------------------------ #
+    # Remove rows with negative age or negative length_of_stay
+    # ------------------------------------------------------------------ #
+    for col in ["age", "length_of_stay"]:
+        if col in df.columns:
+            n_neg = (df[col] < 0).sum()
+            if n_neg > 0:
+                log.info(f"Dropping {n_neg} rows with negative '{col}'")
+            df = df[df[col] >= 0]
+
+    # ------------------------------------------------------------------ #
     # Handle duplicates
     # ------------------------------------------------------------------ #
     df = utils.remove_duplicates(df)
