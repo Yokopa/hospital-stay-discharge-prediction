@@ -592,10 +592,11 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     # ---------------- Convert object columns to category ----------------
     obj_cols = df.select_dtypes(include="object").columns
     df[obj_cols] = df[obj_cols].astype("category")
-    log.info(f"Converted object columns to category: {list(obj_cols)}\n")
+    log.info(f"Converted object columns to category: {list(obj_cols)}")
 
     # ---------------- Map & filter discharge_type target (if applicable) ----------------
     if target_col == "discharge_type":
+        log.info(" ")
         discharge_classes = config.DISCHARGE_CATEGORIES_NUMBER
         log.info(f"Mapping discharge_type target with {discharge_classes} classes.")
         # Apply mapping function
