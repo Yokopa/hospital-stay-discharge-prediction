@@ -118,7 +118,7 @@ def integrate_data(
     # Remove impossible negative values 
     # ------------------------------------------------------------------ #
     # Only lab entries: starting from 9th column
-    neg_cols = utils.find_negative_columns(merged_data, start_col=8)
+    neg_cols = utils.find_negative_columns(merged_data)
     merged_data = utils.replace_negatives_with_nan(merged_data, neg_cols)
 
     # ------------------------------------------------------------------ #

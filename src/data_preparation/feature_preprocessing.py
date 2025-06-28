@@ -263,6 +263,9 @@ def scale_features(X_train, X_test, return_scaler=False):
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
+    # Convert back to DataFrame to preserve column names
+    X_train_scaled = pd.DataFrame(X_train_scaled, columns=X_train.columns, index=X_train.index)
+    X_test_scaled = pd.DataFrame(X_test_scaled, columns=X_test.columns, index=X_test.index)
     if return_scaler:
         return X_train_scaled, X_test_scaled, scaler
     else:
@@ -549,28 +552,25 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     Returns:
         X_train, X_test, y_train, y_test, transformers_dict
     """
-    log.info("Starting dataset preparation...")
+    log.info("Starting dataset preparation...\n")
     df = raw_df.copy()
 
     # ---------------- Engineered features ----------------
     for feat in dataset_config.get("engineered_features", []):
         log.info(f"Applying engineered feature: {feat}")
         if feat == "anemia":
-            log.info("Applying engineered feature: anemia")
             df = classify_anemia_dataset(df)
             log.info("Anemia classification added.")
 
         elif feat == "kidney":
-            log.info("Applying engineered feature: kidney")
             df = classify_kidney_function(df)
             log.info("Kidney function classification added.")
 
         elif feat == "liver":
-            log.info("Applying engineered feature: liver")
             df = compute_apri(df)
             log.info("Liver APRI score added.")
 
-    log.info("Engineered features applied.")
+        log.info("Engineered features applied.")
 
     # ---------------- Deterministic transformations ----------------
     if dataset_config.get("add_missing_flags", False):
@@ -597,6 +597,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     # ---------------- Map & filter discharge_type target (if applicable) ----------------
     if target_col == "discharge_type":
         discharge_classes = config.DISCHARGE_CATEGORIES_NUMBER
+        print()
         log.info(f"Mapping discharge_type target with {discharge_classes} classes.")
         # Apply mapping function
         df[target_col] = df[target_col].apply(lambda val: map_discharge_type(val, discharge_classes))
@@ -607,6 +608,8 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         log.info(f"Filtered to allowed discharge classes: {sorted(df[target_col].unique())}")
         
     # ---------------- Split by patient to avoid leakage ----------------
+    print()  # blank line
+    log.info("Starting train/test split by patient to avoid leakage...")
     X_train, X_test, y_train, y_test = train_test_split_by_patient(
         df, 
         target_col,
@@ -635,6 +638,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     # ---------------- Apply LOS target transformation (if applicable) ----------------
     # AFTER train/test split to ensure no data leakage by fitting transformation only on train set
     if target_col == config.LOS_TARGET:
+        print()
         log.info("Transforming LOS target as per config...")
         y_train, y_test = transform_los_target(y_train, y_test, config.LOS_TRANSFORMATION)
         log.info("LOS target transformation completed.")
@@ -643,6 +647,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
 
     # ---------------- Encoding categorical variables ----------------
     if dataset_config.get("encode", False):
+        print()
         log.info("Starting encoding of categorical variables...")
         ordinal_cols = dataset_config.get("ordinal_cols", [])
         ordinal_categories = dataset_config.get("ordinal_categories", {})
@@ -659,7 +664,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
 
     # ---------------- Imputation of numeric columns ----------------
     if dataset_config.get("impute", False):
-        log.info("Starting imputation of numeric columns...")
+        print()
         numeric_cols = X_train.select_dtypes(include=[np.number]).columns
         impute_cfg = dataset_config.get("imputation_params", {})
         
@@ -669,15 +674,28 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
             impute_cfg=impute_cfg
         )
         
-        # Clip / postprocess
-        X_train.loc[:, numeric_cols] = clip_imputed_values(X_train[numeric_cols], X_train_num_imp)
-        X_test.loc[:, numeric_cols] = clip_imputed_values(X_test[numeric_cols], X_test_num_imp)
+    # Check for negative values before capping
+    log.info("Checking for negative values BEFORE capping in X_train")
+    utils.find_negative_columns(X_train[numeric_cols])
+    log.info("Checking for negative values BEFORE capping in X_test")
+    utils.find_negative_columns(X_test[numeric_cols])
 
-        transformers["imputer"] = f"RandomForestImputer(n_estimators={impute_cfg.get('n_estimators', 10)}, max_iter={impute_cfg.get('max_iter', 5)})"
-        log.info("Imputation completed and applied to dataset.")
+    # Clip / postprocess
+    X_train.loc[:, numeric_cols] = clip_imputed_values(X_train[numeric_cols], X_train_num_imp)
+    X_test.loc[:, numeric_cols] = clip_imputed_values(X_test[numeric_cols], X_test_num_imp)
+
+    # Check for negative values after capping
+    log.info("Checking for negative values AFTER capping in X_train")
+    utils.find_negative_columns(X_train[numeric_cols])
+    log.info("Checking for negative values AFTER capping in X_test")
+    utils.find_negative_columns(X_test[numeric_cols])
+
+    transformers["imputer"] = f"RandomForestImputer(n_estimators={impute_cfg.get('n_estimators', 10)}, max_iter={impute_cfg.get('max_iter', 5)})"
+    log.info("Imputation completed and applied to dataset.")
         
     # ---------------- Scaling features ----------------
     if dataset_config.get("scale", False):
+        print()
         log.info("Starting scaling of features...")
         X_train, X_test, scaler = scale_features(X_train, X_test, return_scaler=True)
         transformers['scaler'] = scaler
@@ -690,28 +708,49 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     log.info("Final Sanity Checks & Data Summary")
 
     # --- y_train / y_test summary
+    print()
     log.info("y_train distribution:\n%s", y_train.describe())
+    print()
     log.info("y_test distribution:\n%s", y_test.describe())
 
     # --- Class balance (only if classification)
     if y_train.dtype.name == 'category' or y_train.dtype == object or y_train.nunique() <= 20:
+        print()
         log.info("y_train value counts:\n%s", y_train.value_counts())
+        print()
         log.info("y_test value counts:\n%s", y_test.value_counts())
 
     # --- Feature matrix info
+    print()
     log.info(f"X_train shape: {X_train.shape} | X_test shape: {X_test.shape}")
-    log.info(f"X_train missing values: {X_train.isnull().sum().sum()}")
-    log.info(f"X_test missing values: {X_test.isnull().sum().sum()}")
 
-    utils.log_df_info(X_train, "X_train")
-    utils.log_df_info(X_test, "X_test")
+    if not isinstance(X_train, pd.DataFrame):
+        raise TypeError("X_train is not a pandas DataFrame at the end of prepare_dataset!")
 
-    
-    # --- Optional: warn if any constant columns (useless for ML)
-    constant_cols = [col for col in X_train.columns if X_train[col].nunique() <= 1]
-    if constant_cols:
-        log.warning(f"Columns with only 1 unique value in X_train: {constant_cols}")
-    
+    for split_name, X in [("Train", X_train), ("Test", X_test)]:
+        # 1) Are there still any categorical columns?
+        cat_cols = X.select_dtypes(include="category").columns.tolist()
+        if cat_cols:
+            log.warning(f"{split_name}: Found unencoded categorical columns: {cat_cols}")
+
+        # 2) Are all the rest numeric?
+        num_cols = X.select_dtypes(include="number").columns.tolist()
+        if len(num_cols) != X.shape[1]:
+            log.warning(f"{split_name}: Some features are non-numeric: " 
+                        f"{set(X.columns) - set(num_cols)}")
+
+        # 3) Check for constant columns (useless for ML)
+        constant = [c for c in X.columns if X[c].nunique() <= 1]
+        if constant:
+            log.warning(f"{split_name}: Constant columns: {constant}")
+
+        # 4) If you scaled, verify the means/stds
+        if "scale" in dataset_config and dataset_config["scale"]:
+            mean = X[num_cols].mean().mean()
+            std  = X[num_cols].std().mean()
+            log.info(f"{split_name} after scaling: mean≈{mean:.3f}, std≈{std:.3f}")
+            
+    print()
     log.info("All sanity checks completed.")
     log.info("-" * 60)
 
