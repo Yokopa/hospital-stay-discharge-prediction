@@ -99,21 +99,17 @@ def find_negative_columns(
     Returns:
         list: List of column names with negative values.
     """
+    # Only select numeric columns
+    numeric_df = df.select_dtypes(include='number')
     if start_col is None:
         start_col = 0
     if end_col is None:
-        numeric_cols = df.columns[start_col:]
-    else:
-        numeric_cols = df.columns[start_col:end_col]
-
-    negative_columns = df.loc[:, numeric_cols].columns[
-        (df.loc[:, numeric_cols] < 0).any()
-    ]
-    num_negative_entries = (df.loc[:, negative_columns] < 0).sum().sum()
-
-    log.info(f"Total negative entries in numeric lab tests: {num_negative_entries}")
+        end_col = len(numeric_df.columns)
+    cols = numeric_df.columns[start_col:end_col]
+    negative_columns = cols[(numeric_df[cols] < 0).any()]
+    num_negative_entries = (numeric_df.loc[:, negative_columns] < 0).sum().sum()
+    log.info(f"Total negative entries in numeric columns: {num_negative_entries}")
     log.info(f"Columns with negative values: {list(negative_columns)}")
-
     return list(negative_columns)
 
 def replace_negatives_with_nan(df: pd.DataFrame, columns: list) -> pd.DataFrame:
@@ -172,6 +168,24 @@ def generate_summary_statistics(
         summary_stats.to_csv(save_path)
 
     return summary_stats
+
+def missing_value_summary(df, name="DataFrame", top_n=10):
+    """
+    Print and log a summary of missing values in a DataFrame.
+
+    Args:
+        df (pd.DataFrame): The DataFrame to check.
+        name (str): Name for logging.
+        top_n (int): Number of top columns by missing values to display.
+    """
+    total_missing = df.isnull().sum().sum()
+    missing_per_col = df.isnull().sum()
+    missing_cols = missing_per_col[missing_per_col > 0].sort_values(ascending=False)
+    log.info(f"{name}: Total missing values: {total_missing}")
+    if not missing_cols.empty:
+        log.info(f"{name}: Columns with missing values (top {top_n}):\n{missing_cols.head(top_n)}")
+    else:
+        log.info(f"{name}: No missing values.")
 
 # -----------------------------------#
 # Modeling Utilities
@@ -368,7 +382,6 @@ def compute_per_class_metrics(y_preds):
         overall_metrics = {"rmse": None, "mae": None, "r2": None}
 
     return rmse_per_class, mae_per_class, r2_per_class, overall_metrics
-
 
 def log_df_info(df, name="DataFrame"):
     buffer = StringIO()
