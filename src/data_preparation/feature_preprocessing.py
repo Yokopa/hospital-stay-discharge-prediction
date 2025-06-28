@@ -592,12 +592,11 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     # ---------------- Convert object columns to category ----------------
     obj_cols = df.select_dtypes(include="object").columns
     df[obj_cols] = df[obj_cols].astype("category")
-    log.info(f"Converted object columns to category: {list(obj_cols)}")
+    log.info(f"Converted object columns to category: {list(obj_cols)}\n")
 
     # ---------------- Map & filter discharge_type target (if applicable) ----------------
     if target_col == "discharge_type":
         discharge_classes = config.DISCHARGE_CATEGORIES_NUMBER
-        print()
         log.info(f"Mapping discharge_type target with {discharge_classes} classes.")
         # Apply mapping function
         df[target_col] = df[target_col].apply(lambda val: map_discharge_type(val, discharge_classes))
@@ -608,7 +607,7 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         log.info(f"Filtered to allowed discharge classes: {sorted(df[target_col].unique())}")
         
     # ---------------- Split by patient to avoid leakage ----------------
-    print()  # blank line
+    log.info(" ")  # blank line
     log.info("Starting train/test split by patient to avoid leakage...")
     X_train, X_test, y_train, y_test = train_test_split_by_patient(
         df, 
@@ -633,21 +632,19 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         if unseen_in_train:
             log.info(f"[{col}] Categories in train but not in test: {sorted(unseen_in_train)}")
 
-    log.info("Finished checking category mismatches.")
+    log.info("Finished checking category mismatches.\n")
 
     # ---------------- Apply LOS target transformation (if applicable) ----------------
     # AFTER train/test split to ensure no data leakage by fitting transformation only on train set
     if target_col == config.LOS_TARGET:
-        print()
         log.info("Transforming LOS target as per config...")
         y_train, y_test = transform_los_target(y_train, y_test, config.LOS_TRANSFORMATION)
-        log.info("LOS target transformation completed.")
+        log.info("LOS target transformation completed.\n")
 
     transformers = {}
 
     # ---------------- Encoding categorical variables ----------------
     if dataset_config.get("encode", False):
-        print()
         log.info("Starting encoding of categorical variables...")
         ordinal_cols = dataset_config.get("ordinal_cols", [])
         ordinal_categories = dataset_config.get("ordinal_categories", {})
@@ -660,11 +657,10 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         X_train = transform_with_encoders(X_train, encoders)
         X_test = transform_with_encoders(X_test, encoders)
         transformers['encoders'] = encoders
-        log.info("Encoding completed.")
+        log.info("Encoding completed.\n")
 
     # ---------------- Imputation of numeric columns ----------------
     if dataset_config.get("impute", False):
-        print()
         numeric_cols = X_train.select_dtypes(include=[np.number]).columns
         impute_cfg = dataset_config.get("imputation_params", {})
         
@@ -691,38 +687,32 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
     utils.find_negative_columns(X_test[numeric_cols])
 
     transformers["imputer"] = f"RandomForestImputer(n_estimators={impute_cfg.get('n_estimators', 10)}, max_iter={impute_cfg.get('max_iter', 5)})"
-    log.info("Imputation completed and applied to dataset.")
+    log.info("Imputation completed and applied to dataset.\n")
         
     # ---------------- Scaling features ----------------
     if dataset_config.get("scale", False):
-        print()
         log.info("Starting scaling of features...")
         X_train, X_test, scaler = scale_features(X_train, X_test, return_scaler=True)
         transformers['scaler'] = scaler
-        log.info("Scaling completed.")
+        log.info("Scaling completed.\n")
 
-    log.info("Dataset preparation finished successfully.")
+    log.info("Dataset preparation finished successfully.\n")
 
     # ---------------- Final Sanity Checks & log ----------------
     log.info("-" * 60)
-    log.info("Final Sanity Checks & Data Summary")
+    log.info("Final Sanity Checks & Data Summary\n")
 
     # --- y_train / y_test summary
-    print()
-    log.info("y_train distribution:\n%s", y_train.describe())
-    print()
-    log.info("y_test distribution:\n%s", y_test.describe())
+    log.debug("y_train distribution:\n%s", y_train.describe())
+    log.debug("y_test distribution:\n%s", y_test.describe(), "\n")
 
     # --- Class balance (only if classification)
     if y_train.dtype.name == 'category' or y_train.dtype == object or y_train.nunique() <= 20:
-        print()
         log.info("y_train value counts:\n%s", y_train.value_counts())
-        print()
-        log.info("y_test value counts:\n%s", y_test.value_counts())
+        log.info("y_test value counts:\n%s", y_test.value_counts(), "\n")
 
     # --- Feature matrix info
-    print()
-    log.info(f"X_train shape: {X_train.shape} | X_test shape: {X_test.shape}")
+    log.info(f"X_train shape: {X_train.shape} | X_test shape: {X_test.shape}\n")
 
     if not isinstance(X_train, pd.DataFrame):
         raise TypeError("X_train is not a pandas DataFrame at the end of prepare_dataset!")
@@ -748,9 +738,8 @@ def prepare_dataset(raw_df, target_col, dataset_config, test_size=config.TEST_SI
         if "scale" in dataset_config and dataset_config["scale"]:
             mean = X[num_cols].mean().mean()
             std  = X[num_cols].std().mean()
-            log.info(f"{split_name} after scaling: mean≈{mean:.3f}, std≈{std:.3f}")
+            log.info(f"{split_name} after scaling: mean≈{mean:.3f}, std≈{std:.3f}\n")
             
-    print()
     log.info("All sanity checks completed.")
     log.info("-" * 60)
 
