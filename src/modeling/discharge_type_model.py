@@ -8,6 +8,7 @@ from sklearn.metrics import (
     roc_auc_score,
     log_loss
 )
+from sklearn.preprocessing import label_binarize
 import numpy as np
 import sys
 import os
@@ -58,7 +59,50 @@ def train_discharge_pipeline(
         sample_weight_train=sample_weights
     )
     log.info("Discharge type classification pipeline completed.")
-    
+
+    # Main classification metrics
+    precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
+    f1_macro = f1_score(y_test, y_pred, average='macro')
+    precision_macro = precision_score(y_test, y_pred, average='macro')
+    recall_macro = recall_score(y_test, y_pred, average='macro')
+    cm = confusion_matrix(y_test, y_pred)
+    balanced_acc = balanced_accuracy_score(y_test, y_pred)
+
+    # ROC AUC + log loss
+    roc_auc, logloss, roc_auc_per_class = None, None, None
+    try:
+        if y_pred_proba is not None:
+            if y_pred_proba.shape[1] == 2:
+                roc_auc = roc_auc_score(y_test, y_pred_proba[:, 1])
+                logloss = log_loss(y_test, y_pred_proba)
+            else:
+                # For multiclass
+                roc_auc = roc_auc_score(y_test, y_pred_proba, multi_class='ovr', average='macro')
+                logloss = log_loss(y_test, y_pred_proba)
+
+                # Optional: per-class AUC
+                y_test_bin = label_binarize(y_test, classes=np.unique(y_test))
+                roc_auc_per_class = roc_auc_score(y_test_bin, y_pred_proba, multi_class='ovr', average=None)
+                
+    except Exception as e:
+        log.warning(f"Could not compute ROC AUC or log loss: {e}")
+
+    return {
+        "classifier": classifier,
+        "f1_score": f1,
+        "f1_macro": f1_macro,
+        "precision": precision,
+        "precision_macro": precision_macro,
+        "recall": recall,
+        "recall_macro": recall_macro,
+        "confusion_matrix": cm,
+        "balanced_accuracy": balanced_acc,
+        "roc_auc": roc_auc,
+        "log_loss": logloss,
+        "roc_auc_per_class": roc_auc_per_class.tolist() if roc_auc_per_class is not None else None,
+        "num_classes": len(np.unique(y_train))
+    }
+
     # Compute classification metrics
     precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
     f1_macro = f1_score(y_test, y_pred, average='macro')
