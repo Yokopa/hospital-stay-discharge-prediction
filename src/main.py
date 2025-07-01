@@ -32,6 +32,8 @@ def main():
     parser.add_argument('--save_dataset', action='store_true', help="Whether to save the prepared dataset.")
     parser.add_argument('--force_reprocess', action='store_true', help="Ignore cached dataset and reprocess it")
     parser.add_argument('--save_model', action='store_true')
+    parser.add_argument('--save_shap', action='store_true')
+    parser.add_argument('--save_preds', action='store_true')
     args = parser.parse_args()
 
         # Force saving if the step is save_dataset_only
@@ -81,6 +83,11 @@ def main():
         logging.info("Step: clean_only - only data cleaning will be performed.")
 
     elif args.step == 'save_dataset_only':
+        if args.target == "discharge_type":
+            logging.info(f"Discharge categories: {config.DISCHARGE_CATEGORIES_NUMBER}")
+        elif args.target == "los":
+            logging.info(f"LOS transformation method: {config.LOS_TRANSFORMATION['method']}")
+
         logging.info(
             f"Step: {args.step} | Target: {args.target} | Dataset: {args.dataset_name} | "
             f"Saving prepared dataset only."
@@ -93,6 +100,11 @@ def main():
         )
 
     elif args.step == 'run_model':
+        if args.target == "discharge_type":
+            logging.info(f"Discharge categories: {config.DISCHARGE_CATEGORIES_NUMBER}")
+        elif args.target == "los":
+            logging.info(f"LOS transformation method: {config.LOS_TRANSFORMATION['method']}")
+        
         threshold_info = args.thresholds if args.target == 'los' and args.mode in ['multiclass', 'two_step'] else 'N/A'
         mode_info = args.mode if args.target == 'los' else 'N/A'
 
@@ -133,14 +145,27 @@ def main():
     else:
         model_config = None
 
+    # ---------------- LOAD CLEANED DATA ----------------
     cleaned = data_loader.load_or_clean_data(args.cleaned_data_path)
     target_col = config.LOS_TARGET if args.target == "los" else config.DISCHARGE_TARGET
     
     dataset_save_dir = config.DATA_DIR / "processed"
     dataset_save_dir.mkdir(parents=True, exist_ok=True)
-    dataset_filename = f"{args.target}_{args.dataset_name}_prepared.joblib"
+    # Optional suffixes
+    discharge_suffix = f"{config.DISCHARGE_CATEGORIES_NUMBER}cat" if args.target == "discharge_type" else ""
+    los_suffix = config.LOS_TRANSFORMATION["method"] if args.target == "los" else ""
+
+    suffix = discharge_suffix or los_suffix or ""
+
+    dataset_filename = f"{args.target}"
+    if suffix:
+        dataset_filename += f"_{suffix}"
+    dataset_filename += f"_{args.dataset_name}_prepared.joblib"
+
     dataset_path = dataset_save_dir / dataset_filename
 
+
+    # ---------------- LOAD OR PREPROCESS DATASET ----------------
     # Try to load preprocessed dataset if it exists
     if dataset_path.exists() and not args.force_reprocess:
         logging.info(f"Found existing dataset at {dataset_path}, loading it.")

@@ -115,14 +115,14 @@ LOS_TARGET_THRESHOLDS = [[3], [4], [5], [7], [10], [14], [30]] # change to LOS_T
 LOS_CLASSIFICATION_THRESHOLDS = [4, 7]  # Default thresholds for LOS classification and two-step modeling
 
 LOS_TRANSFORMATION = {
-    "method": "cap",  # possible options: "none", "cap", "winsorize", "log"
+    "method": "none",  # possible options: "none", "cap", "winsorize", "log"
     #"method": "winsorize",
     "cap_value": "99%",  # or int value like 60
     "winsor_limits": (0.05, 0.05),
 }
 
 # --- Discharge Categories ---
-DISCHARGE_CATEGORIES_NUMBER = 4  # change this to 3 to group into fewer classes
+DISCHARGE_CATEGORIES_NUMBER = 3  # change this to 3 to group into fewer classes
 
 DISCHARGE_TARGET_CATEGORIES = {
     3: ["Home", "Another hospital/institution", "Deceased"],
@@ -252,130 +252,3 @@ DatasetConfig = namedtuple("DatasetConfig", [
 
 
 
-# MODEL_CONFIGS = {
-#     "random_forest": {
-#         "classifier": {
-#             "class": RandomForestClassifier,
-#             "params": {
-#                 "n_estimators": 100,
-#                 "max_depth": 8,
-#                 "random_state": RANDOM_SEED,
-#                 "class_weight": "balanced"
-#             }
-#         },
-#         "regressor": {
-#             "class": RandomForestRegressor,
-#             "params": {
-#                 "n_estimators": 100,
-#                 "max_depth": 10,
-#                 "random_state": RANDOM_SEED
-#             }
-#         }
-#     },
-#     "decision_tree": {
-#         "classifier": {
-#             "class": DecisionTreeClassifier,
-#             "params": {
-#                 "max_depth": 5,
-#                 "random_state": RANDOM_SEED
-#             }
-#         },
-#         "regressor": {
-#             "class": DecisionTreeRegressor,
-#             "params": {
-#                 "max_depth": 5,
-#                 "random_state": RANDOM_SEED
-#             }
-#         }
-#     },
-#     "catboost": {
-#         "classifier": {
-#             "class": CatBoostClassifier,
-#             "params": {
-#                 "iterations": 500,
-#                 "learning_rate": 0.05,
-#                 "depth": 6,
-#                 "eval_metric": "F1",          
-#                 "loss_function": "Logloss",
-#                 "random_seed": RANDOM_SEED,
-#                 "verbose": 100    ,
-#                 "auto_class_weights": "Balanced"  
-#             }
-#         },
-#         "regressor": {
-#             "class": CatBoostRegressor,
-#             "params": {
-#                 "iterations": 500,
-#                 "learning_rate": 0.05,
-#                 "depth": 6,
-#                 "loss_function": "RMSE",
-#                 "eval_metric": "RMSE",
-#                 "random_seed": RANDOM_SEED,
-#                 "verbose": 100
-#             }
-#         }
-#     },
-#     "lightgbm": {
-#         "classifier": {
-#             "class": LGBMClassifier,
-#             "params": {
-#                 "n_estimators": 1000,          # allow early stopping to determine optimal iteration
-#                 "learning_rate": 0.05,         # slower learning for better generalization
-#                 "max_depth": -1,               # let trees grow until leaves
-#                 "num_leaves": 31,              # default, often reasonable
-#                 "min_child_samples": 20,       # helps prevent overfitting
-#                 "subsample": 0.8,              # bagging (row sampling)
-#                 "colsample_bytree": 0.8,       # feature sampling
-#                 "random_state": RANDOM_SEED,
-#                 "verbosity": -1 ,
-#                 "is_unbalance": True               # cleaner output
-#             }
-#         },
-#         "regressor": {
-#             "class": LGBMRegressor,
-#             "params": {
-#                 "n_estimators": 1000,
-#                 "learning_rate": 0.05,
-#                 "max_depth": -1,
-#                 "num_leaves": 31,
-#                 "min_child_samples": 20,
-#                 "subsample": 0.8,
-#                 "colsample_bytree": 0.8,
-#                 "random_state": RANDOM_SEED,
-#                 "verbosity": -1
-#             }
-#         }
-#     },
-#     "xgboost": {
-#         "classifier": {
-#             "class": XGBClassifier,
-#             "params": {
-#                 "n_estimators": 1000,              # large number with early stopping
-#                 "learning_rate": 0.05,             # slower learning for better generalization
-#                 "max_depth": 6,                    # shallower trees help generalize
-#                 "min_child_weight": 1,             # minimum sum of instance weight needed in a child
-#                 "subsample": 0.8,                  # row sampling
-#                 "colsample_bytree": 0.8,           # feature sampling
-#                 "gamma": 0,                        # minimum loss reduction
-#                 "random_state": RANDOM_SEED,
-#                 "use_label_encoder": False,
-#                 "eval_metric": "logloss",          # or 'auc' for binary classification
-#                 "verbosity": 0
-#             }
-#         },
-#         "regressor": {
-#             "class": XGBRegressor,
-#             "params": {
-#                 "n_estimators": 1000,
-#                 "learning_rate": 0.05,
-#                 "max_depth": 6,
-#                 "min_child_weight": 1,
-#                 "subsample": 0.8,
-#                 "colsample_bytree": 0.8,
-#                 "gamma": 0,
-#                 "random_state": RANDOM_SEED,
-#                 "verbosity": 0
-#             }
-#         }
-#     }
-# }
