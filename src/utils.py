@@ -9,15 +9,21 @@ This module includes reusable functions for:
 """
 
 # === Imports ===
-import pandas as pd
-import numpy as np
-from io import StringIO
-from collections import Counter
-import yaml
 import logging
+from collections import Counter
+from io import StringIO
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import yaml
+import shap
+import matplotlib.pyplot as plt
+
 from joblib import dump
 from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+
 import config
 
 log = logging.getLogger(__name__)
@@ -123,7 +129,8 @@ def replace_negatives_with_nan(df: pd.DataFrame, columns: list) -> pd.DataFrame:
     Returns:
         pd.DataFrame: DataFrame with negative values replaced by NaN.
     """
-    df.loc[:, columns] = df.loc[:, columns].apply(lambda col: col.map(lambda x: np.nan if x < 0 else x))
+    for col in columns:
+        df[col] = df[col].astype(float).map(lambda x: np.nan if x < 0 else x)
     log.info(f"Replaced negative values with Nan in columns: {columns}")
     return df
 
@@ -323,29 +330,6 @@ def train_regressor(reg_class, reg_params, X_train, y_train, X_test, categorical
     log.info(f"{reg_class.__name__} training completed.")
     return regressor, y_pred
 
-def save_results(result, results_dir, model_prefix, now):
-    results_dir.mkdir(parents=True, exist_ok=True)
-    df = pd.DataFrame([result]) if isinstance(result, dict) else pd.DataFrame(result)
-    out_path = results_dir / f"{model_prefix}_results_{now}.csv"
-    df.to_csv(out_path, index=False)
-    log.info(f"Saved results to {out_path}")
-
-    if "confusion_matrix" in result:
-        cm_path = results_dir / f"{model_prefix}_confusion_matrix.csv"
-        pd.DataFrame(result["confusion_matrix"]).to_csv(cm_path, index=False)
-        log.info(f"Saved confusion matrix to {cm_path}")
-
-def save_models(result, models_dir, model_prefix):
-    models_dir.mkdir(parents=True, exist_ok=True)
-    if "classifier" in result:
-        clf_path = models_dir / f"{model_prefix}_classifier.joblib"
-        dump(result["classifier"], clf_path)
-        log.info(f"Saved classifier to {clf_path}")
-    if "regressor" in result:
-        reg_path = models_dir / f"{model_prefix}_regressor.joblib"
-        dump(result["regressor"], reg_path)
-        log.info(f"Saved regressor to {reg_path}")
-
 def compute_per_class_metrics(y_preds):
     rmse_per_class = {}
     mae_per_class = {}
@@ -422,3 +406,136 @@ def prepare_classifier_and_weights(model_cfg, y_train, y_train_cls=None):
         sample_weights = compute_sample_weights(y_target)
 
     return clf_class, clf_params, sample_weights
+
+def get_filename_suffix(args):
+    suffix_parts = []
+
+    if args.target == "discharge_type":
+        suffix_parts.append(f"{config.DISCHARGE_CATEGORIES_NUMBER}cat")
+
+    if args.target == "los":
+        method = config.LOS_TRANSFORMATION.get("method", "none")
+
+        if method == "cap":
+            cap_value = config.LOS_TRANSFORMATION.get("cap_value", "")
+            suffix_parts.append(f"cap{cap_value}")  # "cap99", no need to also add "cap"
+        elif method == "winsorize":
+            winsor_limits = config.LOS_TRANSFORMATION.get("winsor_limits", "")
+            suffix_parts.append(f"wins{winsor_limits}")
+        elif method == "log":
+            suffix_parts.append("log")  # add only once
+        elif method != "none":
+            suffix_parts.append(method)  # fallback for other methods
+
+        if args.mode:
+            suffix_parts.append(args.mode)
+
+        if args.mode in ["multiclass", "two_step"] and args.thresholds:
+            thresh_str = "_".join(map(str, args.thresholds))
+            suffix_parts.append(f"thresh_{thresh_str}")
+
+    return "_".join(suffix_parts)
+
+def save_model_outputs( # Old version saved on the cluster
+    result: dict,
+    model_type: str,
+    model_name: str,
+    param_set: str,
+    dataset_name: str,
+    filename_suffix: str,
+    results_dir: Path,
+    models_dir: Path,
+    save_shap: bool = True,
+    save_preds: bool = True,
+    save_model: bool = False
+):
+    """
+    Save model outputs including metrics, trained model(s), predictions, confusion matrix, and SHAP values/plots.
+
+    Supports discharge type classification, LOS classification, LOS regression, and two-step LOS models.
+    """
+
+    # Ensure directories exist
+    results_dir.mkdir(parents=True, exist_ok=True)
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build filename prefix
+    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+    prefix = f"{model_type}_{model_name}_{param_set}_{dataset_name}"
+    if filename_suffix:
+        prefix += f"_{filename_suffix}"
+    prefix += f"_{timestamp}"
+
+    # --- Save metrics ---
+    metrics_keys = [k for k in result.keys()
+                if k not in ("classifier", "regressor", "regressors", "X_test", "confusion_matrix")
+                and not k.startswith(("y_", "shap"))]
+    metrics = {k: result[k] for k in metrics_keys}
+    df_metrics = pd.DataFrame([metrics])
+    df_metrics["dataset_name"] = dataset_name
+    df_metrics.to_csv(results_dir / f"{prefix}_metrics.csv", index=False)
+
+    # --- Save model(s) ---
+    if save_model:
+        if "classifier" in result:
+            dump(result["classifier"], models_dir / f"{prefix}_classifier.joblib")
+        if "regressor" in result:
+            dump(result["regressor"], models_dir / f"{prefix}_regressor.joblib")
+        if "regressors" in result:
+            for cls, reg in result["regressors"].items():
+                dump(reg, models_dir / f"{prefix}_regressor_class{cls}.joblib")
+
+    # --- Save predictions ---
+    if save_preds:
+        for name in ["y_test", "y_pred", "y_pred_proba"]:
+            if name in result and result[name] is not None:
+                pd.DataFrame(result[name]).to_csv(results_dir / f"{prefix}_{name}.csv", index=False)
+
+    # --- Save confusion matrix ---
+    if "confusion_matrix" in result:
+        pd.DataFrame(result["confusion_matrix"]).to_csv(results_dir / f"{prefix}_confusion_matrix.csv", index=False)
+
+    # --- SHAP for classifier ---
+    if save_shap and "classifier" in result and "X_test" in result and hasattr(result["classifier"], "predict_proba"):
+        try:
+            explainer = shap.Explainer(result["classifier"])
+            shap_values = explainer(result["X_test"])
+            dump(shap_values, results_dir / f"{prefix}_shap_classifier.joblib")
+            shap.summary_plot(shap_values, result["X_test"], show=False)
+            plt.tight_layout()
+            plt.savefig(results_dir / f"{prefix}_shap_classifier_summary.png")
+            plt.close()
+        except Exception as e:
+            print(f"[Warning] Could not compute SHAP for classifier: {e}")
+
+    # --- SHAP for regression ---
+    if save_shap and "regressor" in result and "X_test" in result:
+        try:
+            explainer = shap.Explainer(result["regressor"])
+            shap_values = explainer(result["X_test"])
+            dump(shap_values, results_dir / f"{prefix}_shap_regressor.joblib")
+            shap.summary_plot(shap_values, result["X_test"], show=False)
+            plt.tight_layout()
+            plt.savefig(results_dir / f"{prefix}_shap_regressor_summary.png")
+            plt.close()
+        except Exception as e:
+            print(f"[Warning] Could not compute SHAP for regressor: {e}")
+
+    # --- SHAP for each per-class regressor (two-step) ---
+    if save_shap and "regressors" in result and "X_test" in result and "y_pred" in result:
+        try:
+            y_pred_cls = result["y_pred"]
+            X_test = result["X_test"]
+            for cls, reg in result["regressors"].items():
+                cls_mask = (y_pred_cls == cls)
+                if cls_mask.sum() == 0:
+                    continue
+                explainer = shap.Explainer(reg)
+                shap_values = explainer(X_test[cls_mask])
+                dump(shap_values, results_dir / f"{prefix}_shap_regressor_class{cls}.joblib")
+                shap.summary_plot(shap_values, X_test[cls_mask], show=False)
+                plt.tight_layout()
+                plt.savefig(results_dir / f"{prefix}_shap_regressor_class{cls}_summary.png")
+                plt.close()
+        except Exception as e:
+            print(f"[Warning] Could not compute SHAP for per-class regressors: {e}")
