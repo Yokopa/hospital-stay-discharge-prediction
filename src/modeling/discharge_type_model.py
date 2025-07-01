@@ -83,12 +83,23 @@ def train_discharge_pipeline(
                 # Optional: per-class AUC
                 y_test_bin = label_binarize(y_test, classes=np.unique(y_test))
                 roc_auc_per_class = roc_auc_score(y_test_bin, y_pred_proba, multi_class='ovr', average=None)
-                
+                  
     except Exception as e:
         log.warning(f"Could not compute ROC AUC or log loss: {e}")
 
+    # Train metrics
+    y_pred_train = classifier.predict(X_train)
+    precision_train, recall_train, f1_train, _ = precision_recall_fscore_support(y_train, y_pred_train, average='weighted')
+    f1_macro_train = f1_score(y_train, y_pred_train, average='macro')
+    precision_macro_train = precision_score(y_train, y_pred_train, average='macro')
+    recall_macro_train = recall_score(y_train, y_pred_train, average='macro')
+
     return {
         "classifier": classifier,
+        "y_test": y_test,
+        "y_pred": y_pred,
+        "y_pred_proba": y_pred_proba,
+        "X_test": X_test,
         "f1_score": f1,
         "f1_macro": f1_macro,
         "precision": precision,
@@ -100,8 +111,16 @@ def train_discharge_pipeline(
         "roc_auc": roc_auc,
         "log_loss": logloss,
         "roc_auc_per_class": roc_auc_per_class.tolist() if roc_auc_per_class is not None else None,
-        "num_classes": len(np.unique(y_train))
+        "num_classes": len(np.unique(y_train)),
+        "f1_train": f1_train,
+        "precision_train": precision_train,
+        "recall_train": recall_train,
+        "f1_macro_train": f1_macro_train,
+        "precision_macro_train": precision_macro_train,
+        "recall_macro_train": recall_macro_train,
     }
+
+
 
     # Compute classification metrics
     precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='weighted')
