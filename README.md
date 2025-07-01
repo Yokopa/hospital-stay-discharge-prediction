@@ -28,6 +28,72 @@ gantt
     Theis writing :screv, 2025-07-15, 2025-08-15
 ```
 
+# Project structure
+
+project-root/
+│
+├── src/                   # Source code
+│   ├── main.py            # Entry point for data pipeline & modeling
+│   ├── utils.py           # Utilities for preprocessing, modeling, logging
+│   ├── ...
+│
+├── data/                  # Raw and processed data (not tracked)
+│
+├── config/                # Configuration files (YAML)
+│
+├── bash_scripts/          # SLURM job scripts (HPC)
+│
+├── results/               # Model results and logs
+│
+├── models/                # Saved models (joblib)
+│
+├── environment.yaml       # Conda environment specification
+├── README.md              # This file
+└── src/README.md          # Detailed run instructions
+
+# How to Run the Pipeline
+
+1. Set up the environment
+
+```bash
+conda env create -f environment.yaml
+conda activate los_prediction
+```
+2. Clean and preprocess data
+
+```bash
+python src/main.py --step clean_only
+```
+
+3. Train baseline models
+
+```bash
+python src/main.py --step baseline_los --dataset nan_icd_blocks_only --target los --mode binary --thresholds 7
+```
+
+4. Run model comparison
+
+```bash
+python src/main.py --step run_model --dataset nan_new_features --target discharge_type
+```
+
+For full CLI documentation, see src/README.md
+
+# Features
+
+- Supports classification (binary, multiclass) and regression
+
+- Configurable preprocessing pipeline (imputation, encoding, scaling)
+
+- LOS threshold optimization and two-step modeling -> in progress
+
+- SMOTE for class imbalance -> in progress
+
+- Model comparison across dataset variants
+
+- SHAP-based model explainability -> in progress
+
+
 # Supervisor & Contributors
 
 Supervisor: Prof. Alexander Benedikt Leichtle
