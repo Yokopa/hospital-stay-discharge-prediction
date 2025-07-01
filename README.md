@@ -29,7 +29,7 @@ gantt
 ```
 
 # Project structure
-
+```
 project-root/
 │
 ├── src/                   # Source code
@@ -50,7 +50,7 @@ project-root/
 ├── environment.yaml       # Conda environment specification
 ├── README.md              # This file
 └── src/README.md          # Detailed run instructions
-
+```
 # How to Run the Pipeline
 
 1. Set up the environment
