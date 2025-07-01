@@ -35,7 +35,7 @@ project-root/
 ├── src/                   # Source code
 │   ├── main.py            # Entry point for data pipeline & modeling
 │   ├── utils.py           # Utilities for preprocessing, modeling, logging
-│   ├── ...
+│   ├── README.md          # Detailed run instructions
 │
 ├── data/                  # Raw and processed data (not tracked)
 │
@@ -49,7 +49,6 @@ project-root/
 │
 ├── environment.yaml       # Conda environment specification
 ├── README.md              # This file
-└── src/README.md          # Detailed run instructions
 ```
 ## How to Run the Pipeline
 
