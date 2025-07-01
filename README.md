@@ -1,6 +1,6 @@
 # Predicting hospital length of stay (LoS) and discharge type using admission clinical data and laboratory results
 
-Hospital length of stay (LOS) and discharge type are critical factors in patient care and healthcare resource management. This project aims to develop predictive models for LOS and discharge type using clinical and laboratory data, incorporating patient demographics, initial lab values, and principal diagnoses. Accurate predictions could enhance patient care, optimize resource allocation, and facilitate timely coordination of social and medical services.
+Hospital length of stay (LOS) and discharge type are critical factors in patient care and healthcare resource management. This project aims to develop predictive models for LOS and discharge type using data available at admission, including patient demographics, initial lab results, and principal diagnoses. Accurate predictions could enhance patient care, optimize resource allocation, and support timely coordination of medical and social services.
 
 ### Project Timeline:
 
@@ -28,15 +28,79 @@ gantt
     Theis writing :screv, 2025-07-15, 2025-08-15
 ```
 
-### Ongoing Work:
+## Project structure
+```
+project-root/
+│
+├── src/                   # Source code
+│   ├── main.py            # Entry point for data pipeline & modeling
+│   ├── utils.py           # Utilities for preprocessing, modeling, logging
+│   ├── README.md          # Detailed run instructions
+│
+├── data/                  # Raw and processed data (not tracked)
+│
+├── config/                # Configuration files (YAML)
+│
+├── bash_scripts/          # SLURM job scripts (HPC)
+│
+├── results/               # Model results and logs
+│
+├── models/                # Saved models (joblib)
+│
+├── environment.yaml       # Conda environment specification
+├── README.md              # This file
+```
+## How to Run the Pipeline
 
-- **Cleaning and preprocessing clinical and lab data** for predictive modeling of hospital length of stay and discharge type.
-- **Investigating methods for handling missing data and outliers** in the dataset -> MissForest imputation algorithm and Isolation Forest for outlier detection.
-- **Studying model selection, feature engineering, and variable selection techniques** for predicting hospital length of stay (LOS).
-- **Reviewing literature** to understand related methods and approaches in predicting LOS and discharge type.
+1. Set up the environment
 
-### Supervisor & Contributors
+```bash
+conda env create -f environment.yaml
+conda activate los_prediction
+```
+2. Clean and preprocess data
+
+```bash
+python src/main.py --step clean_only
+```
+
+3. Train baseline models
+
+```bash
+python src/main.py --step baseline_los --dataset nan_icd_blocks_only --target los --mode binary --thresholds 7
+```
+
+4. Run model comparison
+
+```bash
+python src/main.py --step run_model --dataset nan_new_features --target discharge_type
+```
+
+For full CLI documentation, see src/README.md
+
+## Features
+
+### Implemented
+- Classification (binary, multiclass) and regression support
+- Configurable preprocessing pipeline (imputation, encoding, scaling)
+- Model comparison across dataset variants
+
+### In Progress
+- LOS threshold optimization and two-step modeling
+- SMOTE for class imbalance
+- SHAP-based model explainability
+
+
+
+## Supervisor & Contributors
 
 Supervisor: Prof. Alexander Benedikt Leichtle
 
 MSc Student: Anna Scarpellini Pancrazi
+
+
+
+
+## Running the main pipeline
+
+See [`src/README.md`](src/README.md) for detailed instructions on how to run `main.py`.
