@@ -4,6 +4,7 @@ from sklearn.metrics import (
     mean_absolute_error, r2_score, root_mean_squared_error,
     f1_score, precision_score, recall_score
 )
+from sklearn.preprocessing import label_binarize
 from sklearn.utils import Bunch
 import warnings
 import pandas as pd
@@ -42,16 +43,34 @@ def train_los_regression_baseline(X_train, X_test, y_train, y_test, model_cfg):
     else:
         y_test_inv = y_test
 
+    # Predict on test data
     rmse = root_mean_squared_error(y_test_inv, y_pred_reg)
     mae = mean_absolute_error(y_test_inv, y_pred_reg)
     r2 = r2_score(y_test_inv, y_pred_reg)
+    log.info(f"Test RMSE: {rmse:.4f}, MAE: {mae:.4f}, R2: {r2:.4f}")
 
-    log.info(f"RMSE: {rmse:.4f}, MAE: {mae:.4f}, R2: {r2:.4f}")
+    # Predict on train data
+    y_pred_train = regressor.predict(X_train)
+    if config.LOS_TRANSFORMATION.get("method", "none") == "log":
+        y_pred_train = np.expm1(y_pred_train)
+        y_train_inv = np.expm1(y_train)
+    else:
+        y_train_inv = y_train
+
+    rmse_train = root_mean_squared_error(y_train_inv, y_pred_train)
+    mae_train = mean_absolute_error(y_train_inv, y_pred_train)
+    r2_train = r2_score(y_train_inv, y_pred_train)
+
+    log.info(f"Train RMSE: {rmse_train:.4f}, MAE: {mae_train:.4f}, R2: {r2_train:.4f}")
+
     return {
         "regressor": regressor,
         "rmse": rmse,
         "mae": mae,
         "r2": r2,
+        "rmse_train": rmse_train,
+        "mae_train": mae_train,
+        "r2_train": r2_train,
     }
 
 def log_los_stats_per_class(y_true, y_binned, name="Train"):
@@ -101,17 +120,73 @@ def train_los_multiclass_baseline(X_train, X_test, y_train, y_test, bins, model_
     balanced_acc = balanced_accuracy_score(y_test_cls, y_pred_cls)
     cm = confusion_matrix(y_test_cls, y_pred_cls)
 
+    # TRAIN METRICS
+    y_pred_train_cls = classifier.predict(X_train)
+
+    f1_train = f1_score(y_train_cls, y_pred_train_cls, average='weighted')
+    precision_train = precision_score(y_train_cls, y_pred_train_cls, average='weighted')
+    recall_train = recall_score(y_train_cls, y_pred_train_cls, average='weighted')
+
+    f1_macro_train = f1_score(y_train_cls, y_pred_train_cls, average='macro')
+    precision_macro_train = precision_score(y_train_cls, y_pred_train_cls, average='macro')
+    recall_macro_train = recall_score(y_train_cls, y_pred_train_cls, average='macro')
+
+    log.info(f"Train F1 (weighted): {f1_train:.4f}")
+
+    # ROC AUC & Log Loss
+    roc_auc = logloss = roc_auc_per_class = None
+    try:
+        if y_pred_proba is not None:
+            y_test_labels = np.ravel(y_test_cls)
+            n_classes = len(np.unique(y_test_labels))
+
+            if n_classes == 2:
+                # Binary classification case
+                y_score = y_pred_proba[:, 1]
+                roc_auc = roc_auc_score(y_test_labels, y_score)
+                logloss = log_loss(y_test_labels, y_pred_proba)
+                roc_auc_per_class = [roc_auc]
+            else:
+                # Multiclass classification case
+                y_test_bin = label_binarize(y_test_labels, classes=np.unique(y_test_labels))
+                roc_auc = roc_auc_score(
+                    y_test_labels,
+                    y_pred_proba,
+                    multi_class='ovr',
+                    average='macro'
+                )
+                logloss = log_loss(y_test_labels, y_pred_proba)
+                roc_auc_per_class = roc_auc_score(
+                    y_test_bin,
+                    y_pred_proba,
+                    multi_class='ovr',
+                    average=None
+                )
+    except Exception as e:
+        log.warning(f"ROC AUC/log loss computation failed: {e}")
+
     return {
         "classifier": classifier,
+        # Test metrics ...
         "f1_score": f1_weighted,
         "precision": precision_weighted,
         "recall": recall_weighted,
         "f1_macro": f1_macro,
         "precision_macro": precision_macro,
         "recall_macro": recall_macro,
+        # Train metrics:
+        "f1_train": f1_train,
+        "precision_train": precision_train,
+        "recall_train": recall_train,
+        "f1_macro_train": f1_macro_train,
+        "precision_macro_train": precision_macro_train,
+        "recall_macro_train": recall_macro_train,
         "balanced_accuracy": balanced_acc,
         "confusion_matrix": cm,
-        "num_classes": len(np.unique(y_train_cls)),
+        "roc_auc": roc_auc,
+        "log_loss": logloss,
+        "roc_auc_per_class": roc_auc_per_class if roc_auc_per_class is not None else None,
+        "num_classes": n_classes,
         "thresholds": bins
     }
 
@@ -176,18 +251,25 @@ def train_los_two_step_pipeline(
 
     roc_auc = None
     logloss = None
+    roc_auc_per_class = None
+
     try:
         if hasattr(classifier, "predict_proba"):
             y_pred_proba = classifier.predict_proba(X_test)
             if y_pred_proba.shape[1] == len(np.unique(y_test_cls)):
                 roc_auc = roc_auc_score(y_test_cls, y_pred_proba, multi_class='ovr')
                 logloss = log_loss(y_test_cls, y_pred_proba)
-                log.info(f"Log Loss computed: {logloss:.4f}")
+                roc_auc_per_class = roc_auc_score(
+                    label_binarize(y_test_cls, classes=np.unique(y_test_cls)),
+                    y_pred_proba,
+                    multi_class='ovr',
+                    average=None
+                )
     except Exception as e:
         warnings.warn(f"ROC AUC or Log Loss computation failed: {e}")
 
     # --- REGRESSORS ---
-    log.info("🔧 Training per-class regressors...")
+    log.info("Training per-class regressors...")
     reg_name = model_cfg["regressor"]["class"]
     reg_params = model_cfg["regressor"]["params"].copy()
     reg_params["random_state"] = config.RANDOM_SEED
@@ -195,6 +277,10 @@ def train_los_two_step_pipeline(
 
     regressors = {}
     y_preds = []
+
+    rmse_per_class_train = {}
+    mae_per_class_train = {}
+    r2_per_class_train = {}
 
     for cls in np.unique(y_train_cls):
         cls_mask_train = y_train_cls == cls
@@ -220,23 +306,48 @@ def train_los_two_step_pipeline(
             y_true_cls = y_test[cls_mask_test]
 
         regressors[int(cls)] = regressor
+        y_preds.append(Bunch(cls=int(cls), y_true=np.array(y_true_cls), y_pred=np.array(y_pred_reg)))
 
-        pred_df = Bunch(
-            cls=int(cls),
-            y_true=np.array(y_true_cls),
-            y_pred=np.array(y_pred_reg)
-        )
-        y_preds.append(pred_df)
 
-    # --- METRICS ---
-    log.info("Computing regression metrics...")
+        # TRAIN predictions
+        y_pred_train_reg = regressor.predict(X_train[cls_mask_train])
+        if config.LOS_TRANSFORMATION.get("method", "none") == "log":
+            y_pred_train_reg = np.expm1(y_pred_train_reg)
+            y_true_train_cls = np.expm1(y_train[cls_mask_train])
+        else:
+            y_true_train_cls = y_train[cls_mask_train]
+
+        rmse_per_class_train[int(cls)] = root_mean_squared_error(y_true_train_cls, y_pred_train_reg)
+        mae_per_class_train[int(cls)] = mean_absolute_error(y_true_train_cls, y_pred_train_reg)
+        r2_per_class_train[int(cls)] = r2_score(y_true_train_cls, y_pred_train_reg)
+
+    # === FINAL METRICS ===
     rmse_per_class, mae_per_class, r2_per_class, overall_metrics = utils.compute_per_class_metrics(y_preds)
 
-    log.info("Two-step LOS prediction pipeline completed.")
+    # Classification train metrics
+    y_pred_train_cls = classifier.predict(X_train)
+    f1_train = f1_score(y_train_cls, y_pred_train_cls, average='weighted')
+    precision_train = precision_score(y_train_cls, y_pred_train_cls, average='weighted')
+    recall_train = recall_score(y_train_cls, y_pred_train_cls, average='weighted')
+    f1_macro_train = f1_score(y_train_cls, y_pred_train_cls, average='macro')
+    precision_macro_train = precision_score(y_train_cls, y_pred_train_cls, average='macro')
+    recall_macro_train = recall_score(y_train_cls, y_pred_train_cls, average='macro')
+
+    # Aggregate train regression metrics (weighted avg)
+    class_counts_train = pd.Series(y_train_cls).value_counts()
+    total_train = len(y_train_cls)
+
+    def weighted_avg(metric_dict):
+        return sum(metric_dict[cls] * class_counts_train.get(cls, 0) for cls in metric_dict) / total_train
+
+    rmse_train = weighted_avg(rmse_per_class_train)
+    mae_train = weighted_avg(mae_per_class_train)
+    r2_train = weighted_avg(r2_per_class_train)
 
     return {
         "classifier": classifier,
         "regressors": regressors,
+        # Test classification metrics
         "f1_score": f1,
         "precision": precision,
         "recall": recall,
@@ -247,15 +358,31 @@ def train_los_two_step_pipeline(
         "confusion_matrix": cm,
         "roc_auc": roc_auc,
         "log_loss": logloss,
+        "roc_auc_per_class": roc_auc_per_class.tolist() if roc_auc_per_class is not None else None,
+        # Test regression metrics
         "rmse": overall_metrics["rmse"],
         "mae": overall_metrics["mae"],
         "r2": overall_metrics["r2"],
         "rmse_per_class": rmse_per_class,
         "mae_per_class": mae_per_class,
         "r2_per_class": r2_per_class,
+        # Train classification metrics
+        "f1_train": f1_train,
+        "precision_train": precision_train,
+        "recall_train": recall_train,
+        "f1_macro_train": f1_macro_train,
+        "precision_macro_train": precision_macro_train,
+        "recall_macro_train": recall_macro_train,
+        # Train regression metrics
+        "rmse_train": rmse_train,
+        "mae_train": mae_train,
+        "r2_train": r2_train,
+        "rmse_per_class_train": rmse_per_class_train,
+        "mae_per_class_train": mae_per_class_train,
+        "r2_per_class_train": r2_per_class_train,
         "thresholds": thresholds,
         "num_classes": len(np.unique(y_train_cls))
-}
+    }
 
 def compare_los_thresholds(
     X_train, X_test, y_train, y_test,
