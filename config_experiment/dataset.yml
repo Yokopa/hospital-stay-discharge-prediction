@@ -60,7 +60,7 @@ nan_age_bin: # to check the impact of age binning
   ordinal_categories: {}
 
 nan_new_features: # to check the impact of engineered features
-  apply_age_binning: true
+  apply_age_binning: false
   add_missing_flags: false
   icd_strategy: none
   impute: false
@@ -73,6 +73,98 @@ nan_new_features: # to check the impact of engineered features
     - ["severe", "moderate", "mild", "normal", "unknown"]
     - ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
 
+nan_icd_blocks_new_features:
+  apply_age_binning: false
+  add_missing_flags: false
+  icd_strategy: blocks
+  impute: false
+  encode: false
+  scale: false
+  engineered_features: ["anemia", "kidney", "liver"]
+  ordinal_cols: ["anemia_level", "kidney_function", "liver_fibrosis_risk"]
+  ordinal_categories:
+    - ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"]
+    - ["severe", "moderate", "mild", "normal", "unknown"]
+    - ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+
+nan_icd_blocks_missing_flags:
+  apply_age_binning: false
+  add_missing_flags: true
+  icd_strategy: blocks
+  impute: false
+  encode: false
+  scale: false
+  engineered_features: []
+  ordinal_cols: []
+  ordinal_categories: {}
+
+nan_icd_blocks_missing_flags_new_features:
+  apply_age_binning: false
+  add_missing_flags: true
+  icd_strategy: blocks
+  impute: false
+  encode: false
+  scale: false
+  engineered_features: ["anemia", "kidney", "liver"]
+  ordinal_cols: ["anemia_level", "kidney_function", "liver_fibrosis_risk"]
+  ordinal_categories:
+    - ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"]
+    - ["severe", "moderate", "mild", "normal", "unknown"]
+    - ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+
+nan_icd_blocks_age_bin:
+  apply_age_binning: true
+  add_missing_flags: false
+  icd_strategy: blocks
+  impute: false
+  encode: false
+  scale: false
+  engineered_features: []
+  ordinal_cols: []
+  ordinal_categories: {}
+
+nan_icd_blocks_new_features_age_bin:
+  apply_age_binning: true
+  add_missing_flags: false
+  icd_strategy: blocks
+  impute: false
+  encode: false
+  scale: false
+  engineered_features: ["anemia", "kidney", "liver"]
+  ordinal_cols: ["anemia_level", "kidney_function", "liver_fibrosis_risk"]
+  ordinal_categories:
+    - ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"]
+    - ["severe", "moderate", "mild", "normal", "unknown"]
+    - ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+
+nan_icd_blocks_all_features: # compute-heavy?
+  apply_age_binning: true
+  add_missing_flags: true
+  icd_strategy: blocks
+  impute: false
+  encode: false
+  scale: false
+  engineered_features: ["anemia", "kidney", "liver"]
+  ordinal_cols: ["anemia_level", "kidney_function", "liver_fibrosis_risk"]
+  ordinal_categories:
+    - ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"]
+    - ["severe", "moderate", "mild", "normal", "unknown"]
+    - ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+
+nan_icd_blocks_new_features_encoded: # For XGBoost
+  apply_age_binning: false
+  add_missing_flags: false
+  icd_strategy: blocks
+  impute: false
+  encode: true
+  scale: false
+  engineered_features: ["anemia", "kidney", "liver"]
+  ordinal_cols: ["anemia_level", "kidney_function", "liver_fibrosis_risk"]
+  ordinal_categories:
+    anemia_level: ["Severe Anemia", "Moderate Anemia", "Mild Anemia", "Normal", "Unknown"]
+    kidney_function: ["severe", "moderate", "mild", "normal", "unknown"]
+    liver_fibrosis_risk: ["high_risk", "moderate_risk", "no_fibrosis", "unknown"]
+    
 # -------------------------------
 # MINIMAL IMPUTED BASELINE SETUP
 # -------------------------------
@@ -82,6 +174,7 @@ baseline_raw:
   icd_strategy: none # icd codes are too sparse, better to reduce sparsity
   encode: True
   impute: True
+  imputation_method: median # or random forest
   imputation_params:
     n_estimators: 20
     max_iter: 5
@@ -95,6 +188,7 @@ imputed_encoded_scaled_icd_blocks:
   add_missing_flags: false
   icd_strategy: blocks
   impute: true
+  imputation_method: median # or random forest
   imputation_params:
     n_estimators: 5
     max_iter: 3
@@ -102,13 +196,14 @@ imputed_encoded_scaled_icd_blocks:
   scale: true
   engineered_features: []
   ordinal_cols: []
-  ordinal_categories:  {}
+  ordinal_categories: {}
 
 imputed_encoded_scaled_icd_categories:
   apply_age_binning: false
   add_missing_flags: false
   icd_strategy: categories
   impute: true
+  imputation_method: median # or random forest
   imputation_params:
     n_estimators: 5
     max_iter: 3
@@ -116,7 +211,7 @@ imputed_encoded_scaled_icd_categories:
   scale: true
   engineered_features: []
   ordinal_cols: []
-  ordinal_categories:  {}
+  ordinal_categories: {}
 
 # -----------------------------------
 # IMPUTED DATASET WITH FULL FEATURES

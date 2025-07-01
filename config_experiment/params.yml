@@ -12,7 +12,25 @@ logistic_regression:
         C: 1.0
         class_weight: "balanced"
         n_jobs: -1
+
+  # Add a new parameter set for L1 regularization
+  l1_balanced:
+    classifier:
+      class: "LogisticRegression"
+      params:
+        # Key changes for L1 regularization:
+        penalty: "l1"
+        solver: "liblinear" # 'liblinear' is a good choice for L1, especially for smaller datasets.
+                            # 'saga' also supports L1, but 'liblinear' is often simpler/faster for this.
+        C: 0.1 # Start with a lower C (stronger regularization) than the L2 default of 1.0
         
+        # Keep these as they were:
+        class_weight: "balanced"
+        max_iter: 1000 # Can adjust if needed, but 1000 is usually sufficient
+        random_state: 42 # Ensure reproducibility
+        # n_jobs: -1 # 'liblinear' solver generally doesn't use n_jobs for parallelization,
+                     # so you can remove or keep it; it might be ignored.
+
 # -----------------------
 # Linear regression parameter sets
 # -----------------------
@@ -30,7 +48,6 @@ lightgbm:
     classifier:
       class: "LGBMClassifier"
       params: {}
-
     regressor:
       class: "LGBMRegressor"
       params: {}
@@ -38,11 +55,28 @@ lightgbm:
   default_balanced:
     classifier:
       class: "LGBMClassifier"
-      params:
-        use_sample_weight: true  # <-- internal flag, not passed to model
+      use_sample_weight: true  # <-- internal flag, not passed to model
+      params: {}
     regressor:
       class: "LGBMRegressor"
       params: {}
+
+  trial_fast:
+    classifier:
+      class: "LGBMClassifier"
+      use_sample_weight: true  # <-- internal flag, not passed to model
+      params:
+        n_estimators: 100         # controls runtime, low for fast tests
+        max_depth: 6              # shallow trees = fast and general
+        learning_rate: 0.1        # higher than default = faster convergence
+        n_jobs: -1
+    regressor:
+      class: "LGBMRegressor"
+      params:
+        n_estimators: 100
+        max_depth: 6
+        learning_rate: 0.1
+        n_jobs: -1
 
 # -----------------------
 # CatBoost parameter sets
@@ -52,7 +86,6 @@ catboost:
     classifier:
       class: "CatBoostClassifier"
       params: {}
-
     regressor:
       class: "CatBoostRegressor"
       params: {}
@@ -60,12 +93,30 @@ catboost:
   default_balanced:
     classifier:
       class: "CatBoostClassifier"
+      use_sample_weight: true  # <-- internal flag
       params:
-        use_sample_weight: true  # <-- internal flag
         auto_class_weights: "Balanced"  # native CatBoost support
     regressor:
       class: "CatBoostRegressor"
       params: {}
+
+  trial_fast:
+    classifier:
+      class: "CatBoostClassifier"
+      use_sample_weight: true  # <-- internal flag
+      params:
+        auto_class_weights: "Balanced"  # native CatBoost support
+        iterations: 100
+        depth: 6
+        learning_rate: 0.1
+        verbose: 0
+    regressor:
+      class: "CatBoostRegressor"
+      params:
+        iterations: 100
+        depth: 6
+        learning_rate: 0.1
+        verbose: 0
 
 # -----------------------
 # XGBoost parameter sets
@@ -90,16 +141,36 @@ xgboost:
       params:
         enable_categorical: true
         tree_method: "hist"
-        use_sample_weight: true  # <-- internal flag
+      use_sample_weight: true  # <-- internal flag
 
     regressor:
       class: "XGBRegressor"
       params:
         enable_categorical: true
         tree_method: "hist"
+
+  trial_fast:
+    classifier:
+      class: "XGBClassifier"
+      params:
+        n_estimators: 100
+        max_depth: 6
+        learning_rate: 0.1
+        enable_categorical: true
+        tree_method: "hist"
+        n_jobs: -1
+      use_sample_weight: true  # <-- internal flag, not passed to model
+    regressor:
+      class: "XGBRegressor"
+      params:
+        n_estimators: 100
+        max_depth: 6
+        learning_rate: 0.1
+        enable_categorical: true
+        tree_method: "hist"
+        n_jobs: -1
+
 # -----------------------
-
-
 
 
 
