@@ -25,8 +25,8 @@ eval "$(conda shell.bash hook)"
 conda activate hospital-stay-discharge-prediction
 
 # Define datasets and models
-DATASETS=("nan" "nan_missing_flags_only" "nan_icd_blocks_only" "nan_icd_categories_only" "nan_age_bin" "nan_new_features")
-MODELS=("lightgbm" "catboost" "xgboost")
+DATASETS=( "nan_icd_blocks_only" "nan_icd_categories_only" "nan_new_features")
+# MODELS=("xgboost") "lightgbm" "catboost" 
 
 # Calculate indices
 NUM_DATASETS=${#DATASETS[@]}
