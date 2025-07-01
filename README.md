@@ -28,7 +28,7 @@ gantt
     Theis writing :screv, 2025-07-15, 2025-08-15
 ```
 
-# Project structure
+## Project structure
 ```
 project-root/
 │
@@ -51,7 +51,7 @@ project-root/
 ├── README.md              # This file
 └── src/README.md          # Detailed run instructions
 ```
-# How to Run the Pipeline
+## How to Run the Pipeline
 
 1. Set up the environment
 
@@ -79,22 +79,21 @@ python src/main.py --step run_model --dataset nan_new_features --target discharg
 
 For full CLI documentation, see src/README.md
 
-# Features
+## Features
 
-- Supports classification (binary, multiclass) and regression
-
+### Implemented
+- Classification (binary, multiclass) and regression support
 - Configurable preprocessing pipeline (imputation, encoding, scaling)
-
-- LOS threshold optimization and two-step modeling -> in progress
-
-- SMOTE for class imbalance -> in progress
-
 - Model comparison across dataset variants
 
-- SHAP-based model explainability -> in progress
+### In Progress
+- LOS threshold optimization and two-step modeling
+- SMOTE for class imbalance
+- SHAP-based model explainability
 
 
-# Supervisor & Contributors
+
+## Supervisor & Contributors
 
 Supervisor: Prof. Alexander Benedikt Leichtle
 
